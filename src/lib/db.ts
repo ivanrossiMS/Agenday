@@ -69,8 +69,9 @@ export async function ensureTablesExist(sql: any) {
         status TEXT DEFAULT 'active',
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-      ALTER TABLE clients ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
     `;
+
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';`;
 
     await sql`
       CREATE TABLE IF NOT EXISTS loyalty_settings (
@@ -111,23 +112,22 @@ export async function ensureTablesExist(sql: any) {
         maps_link TEXT,
         preparation_steps JSONB,
         logo_url TEXT,
+        login_hero_image TEXT,
+        login_quote TEXT,
+        login_quote_author TEXT,
+        testimonials JSONB,
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
     `;
 
     await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS work_days JSONB;`;
-
     await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS login_hero_image TEXT;`;
     await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS login_quote TEXT;`;
     await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS login_quote_author TEXT;`;
     await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS testimonials JSONB;`;
-
-
-
 
     tablesInitialized = true;
   } catch (err) {
     console.error("Error initializing database tables:", err);
   }
 }
-
