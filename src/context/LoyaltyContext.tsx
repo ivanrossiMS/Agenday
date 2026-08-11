@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAppointments } from "./AppointmentsContext";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export type LoyaltySettings = {
   stampsRequired: number;
@@ -53,51 +52,35 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function loadLoyalty() {
-      let remoteSettings: LoyaltySettings | null = null;
-      let remoteClaims: LoyaltyClaim[] | null = null;
-
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const [settingsRes, claimsRes] = await Promise.all([
-            supabase.from("loyalty_settings").select("*").eq("id", "default").single(),
-            supabase.from("loyalty_claims").select("*").order("created_at", { ascending: false })
-          ]);
-
-          if (!settingsRes.error && settingsRes.data) {
-            remoteSettings = {
-              stampsRequired: Number(settingsRes.data.stamps_required) || 5,
-              prizeName: settingsRes.data.prize_name || "1 Hidratação Grátis",
-              expirationDays: Number(settingsRes.data.expiration_days) || 90,
-              isActive: settingsRes.data.is_active !== false
-            };
+      try {
+        const res = await fetch("/api/loyalty");
+        const json = await res.json();
+        if (json.configured) {
+          if (json.settings) {
+            setSettings({
+              stampsRequired: Number(json.settings.stamps_required) || 5,
+              prizeName: json.settings.prize_name || "1 Hidratação Grátis",
+              expirationDays: Number(json.settings.expiration_days) || 90,
+              isActive: json.settings.is_active !== false
+            });
           }
-
-          if (!claimsRes.error && claimsRes.data) {
-            remoteClaims = claimsRes.data.map((item: any) => ({
+          if (Array.isArray(json.claims)) {
+            setClaims(json.claims.map((item: any) => ({
               id: Number(item.id),
               clientEmail: item.client_email,
               clientName: item.client_name,
               prizeName: item.prize_name,
               date: item.date
-            }));
+            })));
           }
-        } catch (e) {
-          console.error("Erro ao carregar fidelidade do Supabase:", e);
+        } else {
+          const savedSettings = localStorage.getItem("@agenday_loyalty_settings");
+          if (savedSettings) setSettings(JSON.parse(savedSettings));
+          const savedClaims = localStorage.getItem("@agenday_loyalty_claims");
+          if (savedClaims) setClaims(JSON.parse(savedClaims));
         }
-      }
-
-      if (remoteSettings) {
-        setSettings(remoteSettings);
-      } else {
-        const savedSettings = localStorage.getItem("@agenday_loyalty_settings");
-        if (savedSettings) setSettings(JSON.parse(savedSettings));
-      }
-
-      if (remoteClaims) {
-        setClaims(remoteClaims);
-      } else {
-        const savedClaims = localStorage.getItem("@agenday_loyalty_claims");
-        if (savedClaims) setClaims(JSON.parse(savedClaims));
+      } catch (e) {
+        console.error("Erro ao carregar fidelidade da API:", e);
       }
 
       setIsLoaded(true);
@@ -111,19 +94,14 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
     setSettings(updated);
     localStorage.setItem("@agenday_loyalty_settings", JSON.stringify(updated));
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from("loyalty_settings").upsert({
-          id: "default",
-          stamps_required: updated.stampsRequired,
-          prize_name: updated.prizeName,
-          expiration_days: updated.expirationDays,
-          is_active: updated.isActive,
-          updated_at: new Date().toISOString()
-        });
-      } catch (e) {
-        console.error("Erro ao salvar configurações de fidelidade no Supabase:", e);
-      }
+    try {
+      await fetch("/api/loyalty", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "updateSettings", settings: updated })
+      });
+    } catch (e) {
+      console.error("Erro ao salvar configurações de fidelidade:", e);
     }
   };
 
@@ -141,18 +119,14 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
     setClaims(updatedClaims);
     localStorage.setItem("@agenday_loyalty_claims", JSON.stringify(updatedClaims));
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from("loyalty_claims").insert({
-          id: newId,
-          client_email: clientEmail,
-          client_name: clientName,
-          prize_name: settings.prizeName,
-          date: dateStr
-        });
-      } catch (e) {
-        console.error("Erro ao salvar resgate no Supabase:", e);
-      }
+    try {
+      await fetch("/api/loyalty", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "claimPrize", claim: newClaim })
+      });
+    } catch (e) {
+      console.error("Erro ao salvar resgate de fidelidade:", e);
     }
   };
 

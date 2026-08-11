@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export type ApptStatus = "confirmed" | "pending" | "completed" | "canceled" | "rescheduled";
 export type PaymentStatus = "paid_pix" | "paid_credit" | "paid_debit" | "open";
@@ -42,74 +41,47 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function loadData() {
-      let remoteAppts: Appointment[] | null = null;
-      let remoteClosed: string[] | null = null;
-      let remoteBlocked: string[] | null = null;
+      try {
+        const [apptsRes, closedRes, blockedRes] = await Promise.all([
+          fetch("/api/appointments").then(r => r.json()),
+          fetch("/api/closed-dates").then(r => r.json()),
+          fetch("/api/blocked-slots").then(r => r.json())
+        ]);
 
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const [apptsRes, closedRes, blockedRes] = await Promise.all([
-            supabase.from("appointments").select("*"),
-            supabase.from("closed_dates").select("*"),
-            supabase.from("blocked_time_slots").select("*")
-          ]);
-
-          if (!apptsRes.error && apptsRes.data) {
-            remoteAppts = apptsRes.data.map((item: any) => ({
-              id: Number(item.id),
-              date: item.date,
-              time: item.time,
-              endTime: item.end_time || undefined,
-              service: item.service,
-              price: Number(item.price) || 0,
-              status: item.status as ApptStatus,
-              paymentStatus: item.payment_status as PaymentStatus,
-              clientName: item.client_name,
-              clientEmail: item.client_email,
-            })).filter(a => a.clientEmail !== "cliente@vip.com");
-          }
-
-          if (!closedRes.error && closedRes.data) {
-            remoteClosed = closedRes.data.map((item: any) => item.date_str);
-          }
-
-          if (!blockedRes.error && blockedRes.data) {
-            remoteBlocked = blockedRes.data.map((item: any) => item.slot_key);
-          }
-        } catch (e) {
-          console.error("Erro ao carregar agendamentos do Supabase:", e);
+        if (apptsRes.configured && Array.isArray(apptsRes.data)) {
+          const formatted: Appointment[] = apptsRes.data.map((item: any) => ({
+            id: Number(item.id),
+            date: item.date,
+            time: item.time,
+            endTime: item.end_time || undefined,
+            service: item.service,
+            price: Number(item.price) || 0,
+            status: item.status as ApptStatus,
+            paymentStatus: item.payment_status as PaymentStatus,
+            clientName: item.client_name,
+            clientEmail: item.client_email,
+          })).filter((a: Appointment) => a.clientEmail !== "cliente@vip.com");
+          setAppointments(formatted);
+        } else {
+          const saved = localStorage.getItem("@agenday:appointments");
+          if (saved) setAppointments(JSON.parse(saved).filter((a: any) => a.clientEmail !== "cliente@vip.com"));
         }
-      }
 
-      // Se obtivemos dados do Supabase, usamos eles; caso contrário, usamos o localStorage
-      if (remoteAppts !== null) {
-        setAppointments(remoteAppts);
-      } else {
-        const saved = localStorage.getItem("@agenday:appointments");
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed)) {
-              setAppointments(parsed.filter(a => a.clientEmail !== "cliente@vip.com"));
-            }
-          } catch (e) {
-            setAppointments([]);
-          }
+        if (closedRes.configured && Array.isArray(closedRes.data)) {
+          setClosedDates(closedRes.data);
+        } else {
+          const savedClosed = localStorage.getItem("@agenday:closedDates");
+          if (savedClosed) setClosedDates(JSON.parse(savedClosed));
         }
-      }
 
-      if (remoteClosed !== null) {
-        setClosedDates(remoteClosed);
-      } else {
-        const savedClosed = localStorage.getItem("@agenday:closedDates");
-        if (savedClosed) setClosedDates(JSON.parse(savedClosed));
-      }
-
-      if (remoteBlocked !== null) {
-        setBlockedTimeSlots(remoteBlocked);
-      } else {
-        const savedBlockedSlots = localStorage.getItem("@agenday:blockedTimeSlots");
-        if (savedBlockedSlots) setBlockedTimeSlots(JSON.parse(savedBlockedSlots));
+        if (blockedRes.configured && Array.isArray(blockedRes.data)) {
+          setBlockedTimeSlots(blockedRes.data);
+        } else {
+          const savedBlocked = localStorage.getItem("@agenday:blockedTimeSlots");
+          if (savedBlocked) setBlockedTimeSlots(JSON.parse(savedBlocked));
+        }
+      } catch (e) {
+        console.error("Erro ao carregar agendamentos da API:", e);
       }
 
       setIsLoaded(true);
@@ -134,9 +106,11 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
             
             if (aptDate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
               changed = true;
-              if (isSupabaseConfigured() && supabase) {
-                supabase.from("appointments").update({ status: "completed" }).eq("id", apt.id);
-              }
+              fetch("/api/appointments", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...apt, status: "completed" })
+              });
               return { ...apt, status: "completed" as ApptStatus };
             }
             
@@ -145,9 +119,11 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
               const endMins = h * 60 + min;
               if (currentMins >= endMins) {
                 changed = true;
-                if (isSupabaseConfigured() && supabase) {
-                  supabase.from("appointments").update({ status: "completed" }).eq("id", apt.id);
-                }
+                fetch("/api/appointments", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ ...apt, status: "completed" })
+                });
                 return { ...apt, status: "completed" as ApptStatus };
               }
             }
@@ -177,16 +153,18 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
     const newClosed = isClosed ? closedDates.filter(d => d !== dateStr) : [...closedDates, dateStr];
     setClosedDates(newClosed);
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        if (isClosed) {
-          await supabase.from("closed_dates").delete().eq("date_str", dateStr);
-        } else {
-          await supabase.from("closed_dates").insert({ date_str: dateStr });
-        }
-      } catch (e) {
-        console.error("Erro ao alterar data fechada no Supabase:", e);
+    try {
+      if (isClosed) {
+        await fetch(`/api/closed-dates?dateStr=${encodeURIComponent(dateStr)}`, { method: "DELETE" });
+      } else {
+        await fetch("/api/closed-dates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dateStr })
+        });
       }
+    } catch (e) {
+      console.error("Erro ao alterar data fechada:", e);
     }
   };
 
@@ -196,16 +174,18 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
     const newBlocked = isBlocked ? blockedTimeSlots.filter(k => k !== key) : [...blockedTimeSlots, key];
     setBlockedTimeSlots(newBlocked);
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        if (isBlocked) {
-          await supabase.from("blocked_time_slots").delete().eq("slot_key", key);
-        } else {
-          await supabase.from("blocked_time_slots").insert({ slot_key: key });
-        }
-      } catch (e) {
-        console.error("Erro ao alterar horário bloqueado no Supabase:", e);
+    try {
+      if (isBlocked) {
+        await fetch(`/api/blocked-slots?slotKey=${encodeURIComponent(key)}`, { method: "DELETE" });
+      } else {
+        await fetch("/api/blocked-slots", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slotKey: key })
+        });
       }
+    } catch (e) {
+      console.error("Erro ao alterar horário bloqueado:", e);
     }
   };
 
@@ -214,82 +194,75 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
     const newAppt: Appointment = { ...appt, id: newId };
     setAppointments(prev => [...prev, newAppt]);
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from("appointments").insert({
-          id: newId,
-          date: appt.date,
-          time: appt.time,
-          end_time: appt.endTime || null,
-          service: appt.service,
-          price: appt.price,
-          status: appt.status,
-          payment_status: appt.paymentStatus,
-          client_name: appt.clientName,
-          client_email: appt.clientEmail
-        });
-      } catch (e) {
-        console.error("Erro ao adicionar agendamento no Supabase:", e);
-      }
+    try {
+      await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newAppt)
+      });
+    } catch (e) {
+      console.error("Erro ao adicionar agendamento:", e);
     }
   };
 
   const updateStatus = async (id: number, status: ApptStatus) => {
-    setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+    const target = appointments.find(a => a.id === id);
+    if (!target) return;
+    const updated = { ...target, status };
+    setAppointments(prev => prev.map(a => a.id === id ? updated : a));
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from("appointments").update({ status }).eq("id", id);
-      } catch (e) {
-        console.error("Erro ao atualizar status do agendamento no Supabase:", e);
-      }
+    try {
+      await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated)
+      });
+    } catch (e) {
+      console.error("Erro ao atualizar status:", e);
     }
   };
 
   const updatePayment = async (id: number, paymentStatus: PaymentStatus) => {
-    setAppointments(prev => prev.map(a => a.id === id ? { ...a, paymentStatus } : a));
+    const target = appointments.find(a => a.id === id);
+    if (!target) return;
+    const updated = { ...target, paymentStatus };
+    setAppointments(prev => prev.map(a => a.id === id ? updated : a));
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from("appointments").update({ payment_status: paymentStatus }).eq("id", id);
-      } catch (e) {
-        console.error("Erro ao atualizar pagamento do agendamento no Supabase:", e);
-      }
+    try {
+      await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated)
+      });
+    } catch (e) {
+      console.error("Erro ao atualizar pagamento:", e);
     }
   };
 
   const updateAppointment = async (id: number, updates: Partial<Appointment>) => {
-    setAppointments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    const target = appointments.find(a => a.id === id);
+    if (!target) return;
+    const updated = { ...target, ...updates };
+    setAppointments(prev => prev.map(a => a.id === id ? updated : a));
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const payload: any = {};
-        if (updates.date !== undefined) payload.date = updates.date;
-        if (updates.time !== undefined) payload.time = updates.time;
-        if (updates.endTime !== undefined) payload.end_time = updates.endTime;
-        if (updates.service !== undefined) payload.service = updates.service;
-        if (updates.price !== undefined) payload.price = updates.price;
-        if (updates.status !== undefined) payload.status = updates.status;
-        if (updates.paymentStatus !== undefined) payload.payment_status = updates.paymentStatus;
-        if (updates.clientName !== undefined) payload.client_name = updates.clientName;
-        if (updates.clientEmail !== undefined) payload.client_email = updates.clientEmail;
-
-        await supabase.from("appointments").update(payload).eq("id", id);
-      } catch (e) {
-        console.error("Erro ao atualizar agendamento no Supabase:", e);
-      }
+    try {
+      await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated)
+      });
+    } catch (e) {
+      console.error("Erro ao atualizar agendamento:", e);
     }
   };
 
   const deleteAppointment = async (id: number) => {
     setAppointments(prev => prev.filter(a => a.id !== id));
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from("appointments").delete().eq("id", id);
-      } catch (e) {
-        console.error("Erro ao deletar agendamento no Supabase:", e);
-      }
+    try {
+      await fetch(`/api/appointments?id=${id}`, { method: "DELETE" });
+    } catch (e) {
+      console.error("Erro ao deletar agendamento:", e);
     }
   };
 

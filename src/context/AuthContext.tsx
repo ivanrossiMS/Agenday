@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 type User = {
   id: string;
@@ -77,17 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(newUser);
     localStorage.setItem("@agenday:user", JSON.stringify(newUser));
 
-    if (isSupabaseConfigured() && supabase) {
-      supabase.from("clients").insert({
+    fetch("/api/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         id: newId,
         name,
         email,
         phone: phone || "",
-        birth_date: birthDate || ""
-      }).then(({ error }) => {
-        if (error) console.error("Erro ao registrar cliente no Supabase:", error);
-      });
-    }
+        birthDate: birthDate || ""
+      })
+    }).catch(err => console.error("Erro ao registrar cliente via API:", err));
 
     return newUser;
   };
@@ -98,15 +97,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updated);
     localStorage.setItem("@agenday:user", JSON.stringify(updated));
 
-    if (isSupabaseConfigured() && supabase && user.role === "client") {
-      supabase.from("clients").update({
-        name: updated.name,
-        phone: updated.phone || "",
-        birth_date: updated.birthDate || "",
-        photo_url: updated.photo || ""
-      }).eq("email", updated.email).then(({ error }) => {
-        if (error) console.error("Erro ao atualizar perfil no Supabase:", error);
-      });
+    if (user.role === "client") {
+      fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: user.id,
+          name: updated.name,
+          email: updated.email,
+          phone: updated.phone || "",
+          birthDate: updated.birthDate || "",
+          photoUrl: updated.photo || ""
+        })
+      }).catch(err => console.error("Erro ao atualizar perfil via API:", err));
     }
   };
 

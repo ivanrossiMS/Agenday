@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export type ServiceItem = {
   id: string;
@@ -62,28 +61,27 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function loadServices() {
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const { data, error } = await supabase.from("services").select("*");
-          if (!error && data && data.length > 0) {
-            const formatted: ServiceItem[] = data.map((item: any) => ({
-              id: item.id,
-              name: item.name,
-              description: item.description || "",
-              price: Number(item.price) || 0,
-              duration: Number(item.duration) || 60,
-              imageUrl: item.image_url || "",
-              professionalName: item.professional_name || "",
-              professionalPhotoUrl: item.professional_photo_url || ""
-            }));
-            setServices(formatted);
-            localStorage.setItem("@agenday:services", JSON.stringify(formatted));
-            setIsLoaded(true);
-            return;
-          }
-        } catch (e) {
-          console.error("Erro ao carregar serviços do Supabase:", e);
+      try {
+        const res = await fetch("/api/services");
+        const json = await res.json();
+        if (json.configured && Array.isArray(json.data) && json.data.length > 0) {
+          const formatted: ServiceItem[] = json.data.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            description: item.description || "",
+            price: Number(item.price) || 0,
+            duration: Number(item.duration) || 60,
+            imageUrl: item.image_url || "",
+            professionalName: item.professional_name || "",
+            professionalPhotoUrl: item.professional_photo_url || ""
+          }));
+          setServices(formatted);
+          localStorage.setItem("@agenday:services", JSON.stringify(formatted));
+          setIsLoaded(true);
+          return;
         }
+      } catch (e) {
+        console.error("Erro ao carregar serviços da API:", e);
       }
 
       // Fallback para localStorage
@@ -114,43 +112,31 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
 
     saveAndSet([...services, newService]);
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from("services").insert({
-          id: newId,
-          name: serviceData.name,
-          description: serviceData.description,
-          price: serviceData.price,
-          duration: serviceData.duration,
-          image_url: serviceData.imageUrl,
-          professional_name: serviceData.professionalName || "",
-          professional_photo_url: serviceData.professionalPhotoUrl || ""
-        });
-      } catch (e) {
-        console.error("Erro ao adicionar serviço no Supabase:", e);
-      }
+    try {
+      await fetch("/api/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newService)
+      });
+    } catch (e) {
+      console.error("Erro ao adicionar serviço via API:", e);
     }
   };
 
   const updateService = async (id: string, updatedData: Partial<ServiceItem>) => {
-    const newServices = services.map(s => s.id === id ? { ...s, ...updatedData } : s);
+    const target = services.find(s => s.id === id);
+    const updated = { ...(target || {}), ...updatedData, id } as ServiceItem;
+    const newServices = services.map(s => s.id === id ? updated : s);
     saveAndSet(newServices);
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const payload: any = {};
-        if (updatedData.name !== undefined) payload.name = updatedData.name;
-        if (updatedData.description !== undefined) payload.description = updatedData.description;
-        if (updatedData.price !== undefined) payload.price = updatedData.price;
-        if (updatedData.duration !== undefined) payload.duration = updatedData.duration;
-        if (updatedData.imageUrl !== undefined) payload.image_url = updatedData.imageUrl;
-        if (updatedData.professionalName !== undefined) payload.professional_name = updatedData.professionalName;
-        if (updatedData.professionalPhotoUrl !== undefined) payload.professional_photo_url = updatedData.professionalPhotoUrl;
-
-        await supabase.from("services").update(payload).eq("id", id);
-      } catch (e) {
-        console.error("Erro ao atualizar serviço no Supabase:", e);
-      }
+    try {
+      await fetch("/api/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated)
+      });
+    } catch (e) {
+      console.error("Erro ao atualizar serviço via API:", e);
     }
   };
 
@@ -158,12 +144,10 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
     const newServices = services.filter(s => s.id !== id);
     saveAndSet(newServices);
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from("services").delete().eq("id", id);
-      } catch (e) {
-        console.error("Erro ao deletar serviço no Supabase:", e);
-      }
+    try {
+      await fetch(`/api/services?id=${id}`, { method: "DELETE" });
+    } catch (e) {
+      console.error("Erro ao deletar serviço via API:", e);
     }
   };
 

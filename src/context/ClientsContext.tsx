@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export type ClientItem = {
   id: string;
@@ -28,28 +27,27 @@ export function ClientsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function loadClients() {
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const { data, error } = await supabase.from("clients").select("*");
-          if (!error && data) {
-            const formatted: ClientItem[] = data.map((item: any) => ({
-              id: item.id,
-              name: item.name,
-              email: item.email,
-              phone: item.phone || undefined,
-              address: item.address || undefined,
-              birthDate: item.birth_date || undefined,
-              photoUrl: item.photo_url || undefined,
-            })).filter(c => c.email !== "cliente@vip.com");
+      try {
+        const res = await fetch("/api/clients");
+        const json = await res.json();
+        if (json.configured && Array.isArray(json.data)) {
+          const formatted: ClientItem[] = json.data.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            email: item.email,
+            phone: item.phone || undefined,
+            address: item.address || undefined,
+            birthDate: item.birth_date || undefined,
+            photoUrl: item.photo_url || undefined,
+          })).filter((c: ClientItem) => c.email !== "cliente@vip.com");
 
-            setClients(formatted);
-            localStorage.setItem("@agenday:clients", JSON.stringify(formatted));
-            setIsLoaded(true);
-            return;
-          }
-        } catch (e) {
-          console.error("Erro ao carregar clientes do Supabase:", e);
+          setClients(formatted);
+          localStorage.setItem("@agenday:clients", JSON.stringify(formatted));
+          setIsLoaded(true);
+          return;
         }
+      } catch (e) {
+        console.error("Erro ao carregar clientes da API:", e);
       }
 
       const saved = localStorage.getItem("@agenday:clients");
@@ -78,41 +76,31 @@ export function ClientsProvider({ children }: { children: ReactNode }) {
     const updatedList = [...clients, newClient];
     saveToStorage(updatedList);
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from("clients").insert({
-          id: newId,
-          name: client.name,
-          email: client.email,
-          phone: client.phone || "",
-          address: client.address || "",
-          birth_date: client.birthDate || "",
-          photo_url: client.photoUrl || ""
-        });
-      } catch (e) {
-        console.error("Erro ao adicionar cliente no Supabase:", e);
-      }
+    try {
+      await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newClient)
+      });
+    } catch (e) {
+      console.error("Erro ao adicionar cliente via API:", e);
     }
   };
 
   const updateClient = async (id: string, updates: Partial<ClientItem>) => {
-    const updatedList = clients.map(c => c.id === id ? { ...c, ...updates } : c);
+    const target = clients.find(c => c.id === id);
+    const updated = { ...(target || {}), ...updates, id } as ClientItem;
+    const updatedList = clients.map(c => c.id === id ? updated : c);
     saveToStorage(updatedList);
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const payload: any = {};
-        if (updates.name !== undefined) payload.name = updates.name;
-        if (updates.email !== undefined) payload.email = updates.email;
-        if (updates.phone !== undefined) payload.phone = updates.phone;
-        if (updates.address !== undefined) payload.address = updates.address;
-        if (updates.birthDate !== undefined) payload.birth_date = updates.birthDate;
-        if (updates.photoUrl !== undefined) payload.photo_url = updates.photoUrl;
-
-        await supabase.from("clients").update(payload).eq("id", id);
-      } catch (e) {
-        console.error("Erro ao atualizar cliente no Supabase:", e);
-      }
+    try {
+      await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated)
+      });
+    } catch (e) {
+      console.error("Erro ao atualizar cliente via API:", e);
     }
   };
 
@@ -120,12 +108,10 @@ export function ClientsProvider({ children }: { children: ReactNode }) {
     const updatedList = clients.filter(c => c.id !== id);
     saveToStorage(updatedList);
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from("clients").delete().eq("id", id);
-      } catch (e) {
-        console.error("Erro ao deletar cliente no Supabase:", e);
-      }
+    try {
+      await fetch(`/api/clients?id=${id}`, { method: "DELETE" });
+    } catch (e) {
+      console.error("Erro ao deletar cliente via API:", e);
     }
   };
 

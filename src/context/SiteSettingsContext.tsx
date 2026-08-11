@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export type SiteSettings = {
   heroTitle: string;
@@ -52,33 +51,33 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function loadSettings() {
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const { data, error } = await supabase.from("site_settings").select("*").eq("id", "default").single();
-          if (!error && data) {
-            const formatted: SiteSettings = {
-              heroTitle: data.hero_title || defaultSettings.heroTitle,
-              heroSubtitle: data.hero_subtitle || defaultSettings.heroSubtitle,
-              heroImage: data.hero_image || defaultSettings.heroImage,
-              aboutTitle: data.about_title || defaultSettings.aboutTitle,
-              aboutText: data.about_text || defaultSettings.aboutText,
-              aboutImage: data.about_image || defaultSettings.aboutImage,
-              businessStart: data.business_start || defaultSettings.businessStart,
-              businessEnd: data.business_end || defaultSettings.businessEnd,
-              whatsappNumber: data.whatsapp_number || defaultSettings.whatsappNumber,
-              salonAddress: data.salon_address || defaultSettings.salonAddress,
-              mapsLink: data.maps_link || defaultSettings.mapsLink,
-              preparationSteps: Array.isArray(data.preparation_steps) ? data.preparation_steps : defaultSettings.preparationSteps,
-              logoUrl: data.logo_url || ""
-            };
-            setSettings(formatted);
-            localStorage.setItem("@agenday_settings", JSON.stringify(formatted));
-            setIsLoaded(true);
-            return;
-          }
-        } catch (e) {
-          console.error("Erro ao carregar configurações do site do Supabase:", e);
+      try {
+        const res = await fetch("/api/settings");
+        const json = await res.json();
+        if (json.configured && json.settings) {
+          const data = json.settings;
+          const formatted: SiteSettings = {
+            heroTitle: data.hero_title || defaultSettings.heroTitle,
+            heroSubtitle: data.hero_subtitle || defaultSettings.heroSubtitle,
+            heroImage: data.hero_image || defaultSettings.heroImage,
+            aboutTitle: data.about_title || defaultSettings.aboutTitle,
+            aboutText: data.about_text || defaultSettings.aboutText,
+            aboutImage: data.about_image || defaultSettings.aboutImage,
+            businessStart: data.business_start || defaultSettings.businessStart,
+            businessEnd: data.business_end || defaultSettings.businessEnd,
+            whatsappNumber: data.whatsapp_number || defaultSettings.whatsappNumber,
+            salonAddress: data.salon_address || defaultSettings.salonAddress,
+            mapsLink: data.maps_link || defaultSettings.mapsLink,
+            preparationSteps: Array.isArray(data.preparation_steps) ? data.preparation_steps : defaultSettings.preparationSteps,
+            logoUrl: data.logo_url || ""
+          };
+          setSettings(formatted);
+          localStorage.setItem("@agenday_settings", JSON.stringify(formatted));
+          setIsLoaded(true);
+          return;
         }
+      } catch (e) {
+        console.error("Erro ao carregar configurações do site da API:", e);
       }
 
       const saved = localStorage.getItem("@agenday_settings");
@@ -100,28 +99,14 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     setSettings(updated);
     localStorage.setItem("@agenday_settings", JSON.stringify(updated));
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from("site_settings").upsert({
-          id: "default",
-          hero_title: updated.heroTitle,
-          hero_subtitle: updated.heroSubtitle,
-          hero_image: updated.heroImage,
-          about_title: updated.aboutTitle,
-          about_text: updated.aboutText,
-          about_image: updated.aboutImage,
-          business_start: updated.businessStart,
-          business_end: updated.businessEnd,
-          whatsapp_number: updated.whatsappNumber,
-          salon_address: updated.salonAddress,
-          maps_link: updated.mapsLink,
-          preparation_steps: updated.preparationSteps,
-          logo_url: updated.logoUrl || "",
-          updated_at: new Date().toISOString()
-        });
-      } catch (e) {
-        console.error("Erro ao atualizar configurações do site no Supabase:", e);
-      }
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated)
+      });
+    } catch (e) {
+      console.error("Erro ao atualizar configurações via API:", e);
     }
   };
 
