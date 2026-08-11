@@ -240,7 +240,12 @@ function AgendarFlow() {
 
   return (
     <div className={styles.container}>
+      {/* Ambient Light Blobs */}
+      <div className={styles.bgBlob1} />
+      <div className={styles.bgBlob2} />
+
       <div className={styles.headerRow}>
+
         {step > 1 && (
           <button 
             type="button" 

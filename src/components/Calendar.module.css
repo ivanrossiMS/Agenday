@@ -1,9 +1,9 @@
 .calendarWrapper {
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--color-border);
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 24px 20px;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04);
+  border: 1.5px solid #e2e8f0;
   max-width: 400px;
   margin: 0 auto;
 }
@@ -12,52 +12,58 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .monthYear {
-  font-family: var(--font-heading);
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-family: inherit;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #b8574c;
   text-transform: capitalize;
+  letter-spacing: -0.01em;
 }
 
 .navButton {
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  width: 40px;
-  height: 40px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-main);
-  transition: all 0.2s ease;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
 }
 
 .navButton:hover {
-  background: var(--color-primary-light);
-  color: var(--color-primary-dark);
+  background: #fff5f3;
+  border-color: #b8574c;
+  color: #b8574c;
+  transform: scale(1.05);
 }
 
 .weekDays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 12px;
 }
 
 .weekDay {
   text-align: center;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748b;
 }
 
 .daysGrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .dayButton {
@@ -66,52 +72,61 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-full);
-  font-weight: 500;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-  color: var(--color-text-main);
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.92rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #1e293b;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dayButton:hover:not(.disabled):not(.emptyDay) {
+  background: #fdf2f0;
+  color: #b8574c;
 }
 
 .apptBadge {
   position: absolute;
   top: 0px;
   right: 0px;
-  background: var(--color-primary-dark, #a85145);
+  background: #ef4444;
   color: #ffffff;
   font-size: 0.6rem;
   font-weight: 800;
-  min-width: 15px;
-  height: 15px;
+  min-width: 16px;
+  height: 16px;
   border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 3px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
   border: 1.5px solid #ffffff;
   line-height: 1;
   z-index: 2;
 }
 
 .selected {
-  background: var(--color-primary) !important;
+  background: linear-gradient(135deg, #b8574c 0%, #8f3c33 100%) !important;
   color: white !important;
-  box-shadow: 0 4px 10px rgba(214, 159, 150, 0.4);
+  box-shadow: 0 8px 18px rgba(184, 87, 76, 0.38) !important;
+  transform: scale(1.08);
 }
 
 .selected .apptBadge {
   background: #ffffff;
-  color: var(--color-primary-dark, #a85145);
-  border-color: var(--color-primary, #c16355);
+  color: #ef4444;
+  border-color: #b8574c;
 }
 
 .today {
-  border: 2px solid var(--color-primary-light);
+  border: 2px solid #b8574c;
 }
 
 .disabled {
-  color: var(--color-border);
+  color: #cbd5e1;
   cursor: not-allowed;
 }
 
@@ -120,7 +135,7 @@
 }
 
 .closed {
-  color: #f44336;
+  color: #f43f5e;
   text-decoration: line-through;
-  opacity: 0.7;
+  opacity: 0.6;
 }
