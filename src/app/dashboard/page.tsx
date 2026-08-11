@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, CalendarDays, Gift, Star, Clock, CheckCircle2, XCircle, RotateCcw, AlertCircle, MapPin, MoreVertical, Calendar, CheckSquare, Camera, ExternalLink, X, UserCircle, ChevronRight, Eye, CreditCard, ArrowRight } from "lucide-react";
+import { Sparkles, CalendarDays, Gift, Star, Clock, CheckCircle2, XCircle, RotateCcw, AlertCircle, MapPin, MoreVertical, Calendar, CheckSquare, Camera, ExternalLink, X, UserCircle, ChevronRight, Eye, CreditCard, ArrowRight, QrCode, Store } from "lucide-react";
+
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useAppointments } from "@/context/AppointmentsContext";
@@ -257,15 +258,18 @@ export default function DashboardPage() {
     }
   };
 
-  const getPaymentBadge = (status: string) => {
+  const getPaymentBadge = (status?: string) => {
     switch (status) {
-      case "paid_pix": return { label: "Pago no Pix", class: styles.paymentPaid };
-      case "paid_credit": return { label: "Pago no Crédito", class: styles.paymentPaid };
-      case "paid_debit": return { label: "Pago no Débito", class: styles.paymentPaid };
-      case "open": return { label: "Em Aberto", class: styles.paymentOpen };
-      default: return { label: "", class: "" };
+      case "paid_pix": return { label: "Pago no Pix", icon: <QrCode size={13} />, class: styles.paymentPaid };
+      case "paid_credit": 
+      case "paid_card": return { label: "Pago no Cartão", icon: <CreditCard size={13} />, class: styles.paymentPaid };
+      case "paid_debit": return { label: "Pago no Débito", icon: <CreditCard size={13} />, class: styles.paymentPaid };
+      case "pending": return { label: "Pagar no Salão", icon: <Store size={13} />, class: styles.paymentOpen };
+      case "open": return { label: "Em Aberto", icon: <CreditCard size={13} />, class: styles.paymentOpen };
+      default: return { label: "Pagar no Salão", icon: <Store size={13} />, class: styles.paymentOpen };
     }
   };
+
 
   const handleCancel = () => {
     if (cancelingId) {
@@ -418,6 +422,10 @@ export default function DashboardPage() {
                   <div className={styles.heroMetaPills}>
                     <span className={styles.heroMetaPill}><Clock size={13} /> {totalDurationText}</span>
                     <span className={styles.heroMetaPill}><Star size={13} /> R$ {nextAppt.price ? nextAppt.price.toFixed(2).replace('.', ',') : '0,00'}</span>
+                    <span className={`${styles.heroMetaPill} ${styles.paymentBadgePill}`}>
+                      {getPaymentBadge(nextAppt.paymentStatus).icon}
+                      <span>{getPaymentBadge(nextAppt.paymentStatus).label}</span>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -470,10 +478,6 @@ export default function DashboardPage() {
                 </a>
               </div>
 
-              {/* Arrival Tip */}
-              <div className={styles.arriveTipCompact}>
-                <Clock size={14} /> Dica: Chegue com 10 minutos de antecedência.
-              </div>
 
               {/* Action Hub */}
               <div className={styles.actionHub}>
