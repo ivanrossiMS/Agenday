@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS clients (
 
 -- 6. TABELA DE CONFIGURAÇÕES DO PROGRAMA DE FIDELIDADE
 CREATE TABLE IF NOT EXISTS loyalty_settings (
-  id TEXT PRIMARY KEY DEFAULT 'default',
+  id TEXT PRIMARY KEY,
   stamps_required INT DEFAULT 5,
   prize_name TEXT DEFAULT '1 Hidratação Grátis',
   expiration_days INT DEFAULT 90,
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS loyalty_claims (
 
 -- 8. TABELA DE CONFIGURAÇÕES GERAIS DO SITE
 CREATE TABLE IF NOT EXISTS site_settings (
-  id TEXT PRIMARY KEY DEFAULT 'default',
+  id TEXT PRIMARY KEY,
   hero_title TEXT,
   hero_subtitle TEXT,
   hero_image TEXT,
@@ -95,10 +95,10 @@ CREATE TABLE IF NOT EXISTS site_settings (
 );
 
 -- ========================================================
--- POPOVOAMENTO INICIAL DE DADOS PADRÃO (SEED)
+-- INSERÇÃO DE DADOS INICIAIS (SEED)
 -- ========================================================
 
--- Inserir Serviços Iniciais (se a tabela estiver vazia)
+-- Inserir Serviços Iniciais
 INSERT INTO services (id, name, description, price, duration, image_url, professional_name, professional_photo_url)
 VALUES 
   ('cilios', 'Extensão de Cílios', 'Técnicas exclusivas de volume brasileiro e clássico, com fios de seda super leves aplicados fio a fio.', 120, 120, 'https://images.unsplash.com/photo-1512496015851-a1c815b7e143?q=80&w=800&auto=format&fit=crop', 'Ana Silva', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150&auto=format&fit=crop'),
