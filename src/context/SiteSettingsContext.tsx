@@ -17,6 +17,9 @@ export type SiteSettings = {
   mapsLink: string;
   preparationSteps: string[];
   logoUrl?: string;
+  loginHeroImage?: string;
+  loginQuote?: string;
+  loginQuoteAuthor?: string;
 };
 
 type SiteSettingsContextType = {
@@ -42,8 +45,12 @@ const defaultSettings: SiteSettings = {
     "Informe alergias ou sensibilidades",
     "Traga uma foto de inspiração"
   ],
-  logoUrl: ""
+  logoUrl: "",
+  loginHeroImage: "https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?q=80&w=1200&auto=format&fit=crop",
+  loginQuote: "A beleza começa no momento em que você decide ser você mesma.",
+  loginQuoteAuthor: "Coco Chanel"
 };
+
 
 
 const SiteSettingsContext = createContext<SiteSettingsContextType | undefined>(undefined);
@@ -92,8 +99,12 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
               salonAddress: data.salon_address !== null && data.salon_address !== undefined ? data.salon_address : localSettings.salonAddress,
               mapsLink: data.maps_link !== null && data.maps_link !== undefined ? data.maps_link : localSettings.mapsLink,
               preparationSteps: Array.isArray(prepSteps) ? prepSteps : (localSettings.preparationSteps || defaultSettings.preparationSteps),
-              logoUrl: data.logo_url !== null && data.logo_url !== undefined ? data.logo_url : (localSettings.logoUrl || "")
+              logoUrl: data.logo_url !== null && data.logo_url !== undefined ? data.logo_url : (localSettings.logoUrl || ""),
+              loginHeroImage: data.login_hero_image !== null && data.login_hero_image !== undefined ? data.login_hero_image : (localSettings.loginHeroImage || defaultSettings.loginHeroImage),
+              loginQuote: data.login_quote !== null && data.login_quote !== undefined ? data.login_quote : (localSettings.loginQuote || defaultSettings.loginQuote),
+              loginQuoteAuthor: data.login_quote_author !== null && data.login_quote_author !== undefined ? data.login_quote_author : (localSettings.loginQuoteAuthor || defaultSettings.loginQuoteAuthor)
             };
+
 
 
             setSettings(formatted);

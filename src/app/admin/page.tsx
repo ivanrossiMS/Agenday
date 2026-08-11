@@ -224,11 +224,13 @@ export default function AdminDashboard() {
         businessEnd: settings.businessEnd || "18:00",
         workDays: settings.workDays || [1, 2, 3, 4, 5, 6],
         whatsappNumber: settings.whatsappNumber || "",
-
         salonAddress: settings.salonAddress || "",
         mapsLink: settings.mapsLink || "",
         preparationSteps: settings.preparationSteps || [],
         logoUrl: settings.logoUrl || "",
+        loginHeroImage: settings.loginHeroImage || "",
+        loginQuote: settings.loginQuote || "",
+        loginQuoteAuthor: settings.loginQuoteAuthor || "",
       });
     }
   }, [settings]);
@@ -1838,9 +1840,66 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
+
+              {/* Card 4: Tela de Login & Cadastro */}
+              <div className={styles.settingsCard}>
+                <div className={styles.settingsHeader}>
+                  <div className={styles.settingsHeaderIcon}><Sparkles size={20} /></div>
+                  Tela de Login & Cadastro
+                </div>
+
+                <div>
+                  <label className={styles.modernLabel}>Imagem de Fundo da Tela de Login</label>
+                  <div className={styles.imageUploader} onClick={() => document.getElementById('loginHeroImageInput')?.click()}>
+                    {siteForm.loginHeroImage ? (
+                      <>
+                        <img src={siteForm.loginHeroImage} alt="Preview Banner Login" className={styles.imagePreview} style={{ height: "120px" }} />
+                        <button type="button" className={styles.removeImageBtn} onClick={(e) => { e.stopPropagation(); setSiteForm({...siteForm, loginHeroImage: ""}); }}>
+                          <Trash2 size={16} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud size={24} color="#94a3b8" />
+                        <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 500 }}>Upload de imagem de fundo da tela de login</span>
+                      </>
+                    )}
+                    <input id="loginHeroImageInput" type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const compressed = await compressImage(file, 1200, 1200, 0.85);
+                        setSiteForm(prev => ({ ...prev, loginHeroImage: compressed }));
+                      }
+                    }} />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: "12px" }}>
+                  <label className={styles.modernLabel}>Frase de Destaque da Tela de Login</label>
+                  <textarea 
+                    className={styles.modernInput} 
+                    style={{ minHeight: "80px", resize: "vertical" }} 
+                    value={siteForm.loginQuote || ""} 
+                    onChange={e => setSiteForm({...siteForm, loginQuote: e.target.value})} 
+                    placeholder="Ex: A beleza começa no momento em que você decide ser você mesma."
+                  />
+                </div>
+
+                <div style={{ marginTop: "12px" }}>
+                  <label className={styles.modernLabel}>Autor da Frase</label>
+                  <input 
+                    type="text" 
+                    className={styles.modernInput} 
+                    value={siteForm.loginQuoteAuthor || ""} 
+                    onChange={e => setSiteForm({...siteForm, loginQuoteAuthor: e.target.value})} 
+                    placeholder="Ex: Coco Chanel"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className={styles.saveActionBar}>
+
               <button type="submit" className="btn-primary" style={{ padding: "16px 40px", fontSize: "1rem", borderRadius: "14px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 4px 16px rgba(var(--color-primary-rgb), 0.3)" }}>
                 <CheckCircle2 size={20} /> Salvar Configurações
               </button>

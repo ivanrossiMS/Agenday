@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Mail, Lock, User as UserIcon, CalendarDays, MessageSquare, AlertCircle, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 import styles from "./page.module.css";
 
 export default function LoginPage() {
@@ -17,7 +18,12 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState("");
   
   const { login, register } = useAuth();
+  const { settings } = useSiteSettings();
   const router = useRouter();
+
+  const heroImgUrl = settings.loginHeroImage || "https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?q=80&w=1200&auto=format&fit=crop";
+  const quoteText = settings.loginQuote || "A beleza começa no momento em que você decide ser você mesma.";
+  const quoteAuthorText = settings.loginQuoteAuthor ? (settings.loginQuoteAuthor.startsWith("—") ? settings.loginQuoteAuthor : `— ${settings.loginQuoteAuthor}`) : "— Coco Chanel";
 
   const formatPhone = (val: string) => {
     const digits = val.replace(/\D/g, "");
@@ -63,17 +69,18 @@ export default function LoginPage() {
       <div className={styles.imageSection}>
         <div className={styles.imageOverlay} />
         <img 
-          src="https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?q=80&w=1200&auto=format&fit=crop" 
+          src={heroImgUrl} 
           alt="Spa and Beauty" 
           className={styles.image} 
         />
         <div className={styles.quoteWrapper}>
           <div className={styles.quote}>
-            "A beleza começa no momento em que você decide ser você mesma."
+            "{quoteText.replace(/^["“]|["”]$/g, '')}"
           </div>
-          <div className={styles.quoteAuthor}>— Coco Chanel</div>
+          <div className={styles.quoteAuthor}>{quoteAuthorText}</div>
         </div>
       </div>
+
 
       {/* Right side: Form */}
       <div className={styles.formSection}>
