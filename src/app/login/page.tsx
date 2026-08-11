@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Mail, Lock, User as UserIcon, CalendarDays, MessageSquare, AlertCircle } from "lucide-react";
+import { ArrowLeft, Mail, Lock, User as UserIcon, CalendarDays, MessageSquare, AlertCircle, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import styles from "./page.module.css";
 
@@ -55,6 +55,10 @@ export default function LoginPage() {
 
   return (
     <div className={styles.container}>
+      {/* Ambient Blobs */}
+      <div className={styles.bgBlob1} />
+      <div className={styles.bgBlob2} />
+
       {/* Left side: Premium Image */}
       <div className={styles.imageSection}>
         <div className={styles.imageOverlay} />
@@ -74,16 +78,22 @@ export default function LoginPage() {
       {/* Right side: Form */}
       <div className={styles.formSection}>
         <Link href="/" className={styles.backLink}>
-          <ArrowLeft size={20} /> Voltar para o início
+          <ArrowLeft size={18} /> Voltar para o início
         </Link>
         
         <div className={styles.formWrapper}>
+          <div className={styles.brandBadge}>
+            <Sparkles size={16} className={styles.brandBadgeIcon} />
+            <span>Fran Marinho • Studio de Beleza</span>
+          </div>
+
           <h1 className={styles.title}>{isLogin ? "Bem-vinda de volta" : "Crie sua conta"}</h1>
           <p className={styles.subtitle}>
             {isLogin 
               ? "Entre para gerenciar seus agendamentos e ver seus pontos de fidelidade." 
               : "Cadastre-se para acessar nossos serviços premium e programa de fidelidade."}
           </p>
+
 
           {errorMsg && (
             <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", padding: "12px 16px", borderRadius: "12px", marginBottom: "20px", fontSize: "0.88rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "10px" }}>
