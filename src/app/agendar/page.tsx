@@ -116,9 +116,9 @@ function AgendarFlow() {
     e.preventDefault();
     setAuthError("");
     if (isLogin) {
-      const loggedUser = await login(email, password);
-      if (!loggedUser) {
-        setAuthError("Usuário não encontrado. Alterne para a aba de Cadastro para criar sua conta.");
+      const result = await login(email, password);
+      if (!result.success || !result.user) {
+        setAuthError(result.error || "Usuário não encontrado. Alterne para a aba de Cadastro para criar sua conta.");
         return;
       }
     } else {

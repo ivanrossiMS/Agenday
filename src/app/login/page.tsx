@@ -69,19 +69,19 @@ export default function LoginPage() {
     if (viewMode === "login") {
       setIsSubmitting(true);
       try {
-        const loggedUser = await login(email, password);
-        if (!loggedUser) {
-          setErrorMsg("Usuário ou senha incorretos. Por favor, verifique seus dados ou faça seu cadastro.");
+        const result = await login(email, password);
+        if (!result.success || !result.user) {
+          setErrorMsg(result.error || "E-mail ou senha incorretos. Por favor, tente novamente.");
           setIsSubmitting(false);
           return;
         }
-        if (loggedUser.role === "admin") {
+        if (result.user.role === "admin") {
           router.push("/admin");
         } else {
           router.push("/dashboard");
         }
       } catch (err) {
-        setErrorMsg("Erro ao realizar login.");
+        setErrorMsg("Erro ao realizar login. Tente novamente.");
         setIsSubmitting(false);
       }
     } else {

@@ -22,9 +22,9 @@ export default function AdminLogin() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
-    const loggedUser = await login(email, password);
-    if (!loggedUser || loggedUser.role !== "admin") {
-      setErrorMsg("E-mail ou senha incorretos para o painel administrativo.");
+    const result = await login(email, password);
+    if (!result.success || !result.user || result.user.role !== "admin") {
+      setErrorMsg(result.error || "E-mail ou senha incorretos para o painel administrativo.");
       return;
     }
     router.push("/admin");

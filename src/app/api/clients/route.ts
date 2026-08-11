@@ -21,10 +21,10 @@ export async function POST(req: Request) {
   try {
     await ensureTablesExist(sql);
     const body = await req.json();
-    const { id, name, email, phone, address, birthDate, photoUrl, status } = body;
+    const { id, name, email, phone, address, birthDate, photoUrl, status, password } = body;
     await sql`
-      INSERT INTO clients (id, name, email, phone, address, birth_date, photo_url, status)
-      VALUES (${id}, ${name}, ${email || ''}, ${phone || ''}, ${address || ''}, ${birthDate || ''}, ${photoUrl || ''}, ${status || 'active'})
+      INSERT INTO clients (id, name, email, phone, address, birth_date, photo_url, status, password)
+      VALUES (${id}, ${name}, ${email || ''}, ${phone || ''}, ${address || ''}, ${birthDate || ''}, ${photoUrl || ''}, ${status || 'active'}, ${password || ''})
       ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
         email = EXCLUDED.email,
@@ -32,7 +32,8 @@ export async function POST(req: Request) {
         address = EXCLUDED.address,
         birth_date = EXCLUDED.birth_date,
         photo_url = EXCLUDED.photo_url,
-        status = EXCLUDED.status
+        status = EXCLUDED.status,
+        password = CASE WHEN EXCLUDED.password <> '' THEN EXCLUDED.password ELSE clients.password END
     `;
     return NextResponse.json({ success: true });
   } catch (error: any) {

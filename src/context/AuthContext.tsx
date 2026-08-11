@@ -16,7 +16,7 @@ type User = {
 
 type AuthContextType = {
   user: User | null;
-  login: (email: string, pass: string) => Promise<User | null>;
+  login: (email: string, pass: string) => Promise<{ success: boolean; user?: User; error?: string }>;
   logout: () => void;
   register: (name: string, email: string, pass: string, birthDate?: string, phone?: string) => User;
   updateProfile: (data: Partial<User>) => void;
@@ -67,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 phone: matchedClient.phone || currentUser.phone,
                 birthDate: matchedClient.birth_date || currentUser.birthDate,
                 photo: matchedClient.photo_url || currentUser.photo,
+                password: matchedClient.password || currentUser.password,
               };
               setUser(syncedUser);
               localStorage.setItem("@agenday:user", JSON.stringify(syncedUser));
@@ -80,27 +81,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     syncFromDb();
   }, []);
 
-  const login = async (email: string, pass: string): Promise<User | null> => {
+  const login = async (email: string, pass: string): Promise<{ success: boolean; user?: User; error?: string }> => {
     const lowerEmail = email.toLowerCase().trim();
 
-    // 1. Login do Administrador
-    if (lowerEmail === "brasilfrancielli@gmail.com" && pass === "ivanross") {
-      const adminUser: User = {
-        id: "admin1",
-        name: "Francielli",
-        email,
-        role: "admin",
-        phone: "(11) 98888-7777",
-        birthDate: "1995-05-15",
-        password: pass,
-        status: "active"
-      };
-      setUser(adminUser);
-      localStorage.setItem("@agenday:user", JSON.stringify(adminUser));
-      return adminUser;
+    // 1. Tentar autenticação via API (valida a senha no banco de dados PostgreSQL)
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: lowerEmail, password: pass }),
+      });
+      const json = await res.json();
+
+      if (res.ok && json.success && json.user) {
+        const loggedUser: User = {
+          ...json.user,
+          password: pass
+        };
+        setUser(loggedUser);
+        localStorage.setItem("@agenday:user", JSON.stringify(loggedUser));
+
+        // Atualizar lista local
+        const usersListStr = localStorage.getItem("@agenday:users_list");
+        let usersList: User[] = [];
+        if (usersListStr) {
+          try { usersList = JSON.parse(usersListStr); } catch (e) {}
+        }
+        usersList = usersList.filter(u => u.email.toLowerCase() !== lowerEmail);
+        usersList.push(loggedUser);
+        localStorage.setItem("@agenday:users_list", JSON.stringify(usersList));
+
+        return { success: true, user: loggedUser };
+      }
+
+      // Se a API retornou erro específico de senha incorreta
+      if (json.message && json.message !== "USER_NOT_FOUND") {
+        return { success: false, error: json.message };
+      }
+    } catch (err) {
+      console.error("Erro ao autenticar via API:", err);
     }
 
-    // 2. Procurar na lista de usuários cadastrados no localStorage
+    // 2. Login de Admin Fallback (Caso sem conexão)
+    if (lowerEmail === "brasilfrancielli@gmail.com") {
+      if (pass === "ivanross") {
+        const adminUser: User = {
+          id: "admin1",
+          name: "Francielli",
+          email,
+          role: "admin",
+          phone: "(11) 98888-7777",
+          birthDate: "1995-05-15",
+          password: pass,
+          status: "active"
+        };
+        setUser(adminUser);
+        localStorage.setItem("@agenday:user", JSON.stringify(adminUser));
+        return { success: true, user: adminUser };
+      } else {
+        return { success: false, error: "Senha incorreta. Por favor, verifique seus dados ou clique em 'Esqueci minha senha'." };
+      }
+    }
+
+    // 3. Fallback de busca na lista local do localStorage
     const usersListStr = localStorage.getItem("@agenday:users_list");
     let usersList: User[] = [];
     if (usersListStr) {
@@ -109,7 +152,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let foundUser = usersList.find(u => u.email.toLowerCase() === lowerEmail);
 
-    // 3. Verificar se é o usuário atualmente armazenado
     if (!foundUser) {
       const storedUserStr = localStorage.getItem("@agenday:user");
       if (storedUserStr) {
@@ -122,47 +164,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // 4. Buscar no banco de dados PostgreSQL via API
-    if (!foundUser) {
-      try {
-        const res = await fetch("/api/clients");
-        const json = await res.json();
-        if (json.data && Array.isArray(json.data)) {
-          const matched = json.data.find((c: any) => c.email && c.email.toLowerCase() === lowerEmail);
-          if (matched) {
-            foundUser = {
-              id: matched.id,
-              name: matched.name,
-              email: matched.email,
-              role: "client",
-              phone: matched.phone || "",
-              birthDate: matched.birth_date || "",
-              photo: matched.photo_url || "",
-              status: matched.status || "active",
-              password: pass
-            };
-            // Salvar na lista local para acesso rápido posterior
-            usersList.push(foundUser);
-            localStorage.setItem("@agenday:users_list", JSON.stringify(usersList));
-          }
-        }
-      } catch (err) {
-        console.error("Erro ao consultar cliente no banco de dados durante o login:", err);
-      }
-    }
-
-    // 5. Se o usuário for encontrado, realiza o login. Caso contrário, retorna NULL sem criar conta!
     if (foundUser) {
+      // Se o usuário tem senha gravada, VALIDA se a senha bate!
+      if (foundUser.password && foundUser.password.trim() !== "") {
+        if (foundUser.password !== pass) {
+          return { success: false, error: "Senha incorreta. Por favor, verifique a senha digitada ou clique em 'Esqueci minha senha'." };
+        }
+      }
+
       const loggedUser = {
         ...foundUser,
-        password: pass || foundUser.password
+        password: pass
       };
       setUser(loggedUser);
       localStorage.setItem("@agenday:user", JSON.stringify(loggedUser));
-      return loggedUser;
+      return { success: true, user: loggedUser };
     }
 
-    return null;
+    return { success: false, error: "Usuário não encontrado. Por favor, faça seu cadastro no botão 'Cadastre-se aqui'." };
   };
 
   const logout = () => {
@@ -197,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     usersList.push(newUser);
     localStorage.setItem("@agenday:users_list", JSON.stringify(usersList));
 
-    // 3. Salvar no banco PostgreSQL via API
+    // 3. Salvar no banco PostgreSQL via API (incluindo a senha)
     fetch("/api/clients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -207,7 +226,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         phone: phone || "",
         birthDate: birthDate || "",
-        status: "active"
+        status: "active",
+        password: pass
       })
     }).catch(err => console.error("Erro ao registrar cliente via API:", err));
 
