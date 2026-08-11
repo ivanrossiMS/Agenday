@@ -34,12 +34,45 @@ export default function DashboardPage() {
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
-  // Filters: strictly show appointments for the logged-in user
-  const myAppts = appointments.filter(a => user && a.clientEmail?.toLowerCase() === user.email?.toLowerCase());
+  const parseApptTimestamp = (dateStr?: string, timeStr?: string) => {
+    if (!dateStr) return 0;
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return 0;
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+
+    let hours = 0;
+    let mins = 0;
+    if (timeStr && timeStr.includes(':')) {
+      const [h, m] = timeStr.split(':').map(Number);
+      hours = isNaN(h) ? 0 : h;
+      mins = isNaN(m) ? 0 : m;
+    }
+
+    return new Date(year, month, day, hours, mins).getTime();
+  };
+
+  // Filters: strictly show appointments for the logged-in user, sorted from newest (latest) to oldest
+  const myAppts = appointments
+    .filter(a => user && a.clientEmail?.toLowerCase() === user.email?.toLowerCase())
+    .sort((a, b) => {
+      const timeA = parseApptTimestamp(a.date, a.time);
+      const timeB = parseApptTimestamp(b.date, b.time);
+      if (timeA !== timeB) return timeB - timeA; // Do último (mais recente) para o mais antigo
+      return Number(b.id) - Number(a.id);
+    });
 
   const upcomingAppts = myAppts.filter(a => a.status === "confirmed" || a.status === "pending");
   const historyAppts = myAppts.filter(a => a.status === "completed" || a.status === "canceled" || a.status === "rescheduled");
-  const nextAppt = upcomingAppts[0];
+  
+  // Próximo agendamento futuro mais próximo
+  const nextAppt = [...upcomingAppts].sort((a, b) => {
+    const timeA = parseApptTimestamp(a.date, a.time);
+    const timeB = parseApptTimestamp(b.date, b.time);
+    return timeA - timeB;
+  })[0];
+
 
   // Matched real services & consecutive time slots for each procedure
   const rawServiceNames = nextAppt?.service ? nextAppt.service.split(/\s*\+\s*/) : [];

@@ -2478,7 +2478,17 @@ export default function AdminDashboard() {
               const client = clients.find(c => c.id === selectedClientId);
               if (!client) return null;
               
-              const clientAppts = appointments.filter(a => a.clientEmail === client.email).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              const parseDateString = (dStr?: string, tStr?: string) => {
+                if (!dStr) return 0;
+                const p = dStr.split('/');
+                if (p.length !== 3) return 0;
+                const [h, m] = (tStr && tStr.includes(':')) ? tStr.split(':').map(Number) : [0, 0];
+                return new Date(parseInt(p[2], 10), parseInt(p[1], 10) - 1, parseInt(p[0], 10), h || 0, m || 0).getTime();
+              };
+              const clientAppts = appointments
+                .filter(a => a.clientEmail?.toLowerCase() === client.email?.toLowerCase())
+                .sort((a, b) => parseDateString(b.date, b.time) - parseDateString(a.date, a.time));
+
               const ltv = clientAppts.filter(a => a.status === 'completed' || a.paymentStatus.includes('paid')).reduce((acc, curr) => acc + curr.price, 0);
               const stats = getUserStats(client.email);
 
