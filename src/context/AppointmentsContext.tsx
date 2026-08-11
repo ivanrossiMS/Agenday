@@ -29,6 +29,7 @@ type AppointmentsContextType = {
   toggleDateClosed: (dateStr: string) => void;
   blockedTimeSlots: string[];
   toggleTimeSlot: (dateStr: string, time: string) => void;
+  blockTimeSlots: (dateStr: string, times: string[]) => void;
 };
 
 const AppointmentsContext = createContext<AppointmentsContextType | undefined>(undefined);
@@ -41,51 +42,98 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function loadData() {
+      const savedAppts = localStorage.getItem("@agenday:appointments");
+      const localAppts: Appointment[] = savedAppts ? JSON.parse(savedAppts).filter((a: any) => a.clientEmail !== "cliente@vip.com") : [];
+      const savedClosed = localStorage.getItem("@agenday:closedDates");
+      const localClosed: string[] = savedClosed ? JSON.parse(savedClosed) : [];
+      const savedBlocked = localStorage.getItem("@agenday:blockedTimeSlots");
+      const localBlocked: string[] = savedBlocked ? JSON.parse(savedBlocked) : [];
+
       try {
         const [apptsRes, closedRes, blockedRes] = await Promise.all([
-          fetch("/api/appointments").then(r => r.json()),
-          fetch("/api/closed-dates").then(r => r.json()),
-          fetch("/api/blocked-slots").then(r => r.json())
+          fetch("/api/appointments").then(r => r.json()).catch(() => ({ configured: false, data: [] })),
+          fetch("/api/closed-dates").then(r => r.json()).catch(() => ({ configured: false, data: [] })),
+          fetch("/api/blocked-slots").then(r => r.json()).catch(() => ({ configured: false, data: [] }))
         ]);
 
         if (apptsRes.configured && Array.isArray(apptsRes.data)) {
-          const formatted: Appointment[] = apptsRes.data.map((item: any) => ({
-            id: Number(item.id),
-            date: item.date,
-            time: item.time,
-            endTime: item.end_time || undefined,
-            service: item.service,
-            price: Number(item.price) || 0,
-            status: item.status as ApptStatus,
-            paymentStatus: item.payment_status as PaymentStatus,
-            clientName: item.client_name,
-            clientEmail: item.client_email,
-          })).filter((a: Appointment) => a.clientEmail !== "cliente@vip.com");
-          setAppointments(formatted);
+          if (apptsRes.data.length > 0) {
+            const formatted: Appointment[] = apptsRes.data.map((item: any) => ({
+              id: Number(item.id),
+              date: item.date,
+              time: item.time,
+              endTime: item.end_time || undefined,
+              service: item.service,
+              price: Number(item.price) || 0,
+              status: item.status as ApptStatus,
+              paymentStatus: item.payment_status as PaymentStatus,
+              clientName: item.client_name,
+              clientEmail: item.client_email,
+            })).filter((a: Appointment) => a.clientEmail !== "cliente@vip.com");
+            setAppointments(formatted);
+            localStorage.setItem("@agenday:appointments", JSON.stringify(formatted));
+          } else if (localAppts.length > 0) {
+            setAppointments(localAppts);
+            localStorage.setItem("@agenday:appointments", JSON.stringify(localAppts));
+            for (const apt of localAppts) {
+              fetch("/api/appointments", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(apt)
+              }).catch(e => console.error("Error seeding appt:", e));
+            }
+          }
         } else {
-          const saved = localStorage.getItem("@agenday:appointments");
-          if (saved) setAppointments(JSON.parse(saved).filter((a: any) => a.clientEmail !== "cliente@vip.com"));
+          setAppointments(localAppts);
         }
 
         if (closedRes.configured && Array.isArray(closedRes.data)) {
-          setClosedDates(closedRes.data);
+          if (closedRes.data.length > 0) {
+            setClosedDates(closedRes.data);
+            localStorage.setItem("@agenday:closedDates", JSON.stringify(closedRes.data));
+          } else if (localClosed.length > 0) {
+            setClosedDates(localClosed);
+            localStorage.setItem("@agenday:closedDates", JSON.stringify(localClosed));
+            for (const d of localClosed) {
+              fetch("/api/closed-dates", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ dateStr: d })
+              }).catch(e => console.error("Error seeding closed date:", e));
+            }
+          }
         } else {
-          const savedClosed = localStorage.getItem("@agenday:closedDates");
-          if (savedClosed) setClosedDates(JSON.parse(savedClosed));
+          setClosedDates(localClosed);
         }
 
         if (blockedRes.configured && Array.isArray(blockedRes.data)) {
-          setBlockedTimeSlots(blockedRes.data);
+          if (blockedRes.data.length > 0) {
+            setBlockedTimeSlots(blockedRes.data);
+            localStorage.setItem("@agenday:blockedTimeSlots", JSON.stringify(blockedRes.data));
+          } else if (localBlocked.length > 0) {
+            setBlockedTimeSlots(localBlocked);
+            localStorage.setItem("@agenday:blockedTimeSlots", JSON.stringify(localBlocked));
+            for (const k of localBlocked) {
+              fetch("/api/blocked-slots", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ slotKey: k })
+              }).catch(e => console.error("Error seeding blocked slot:", e));
+            }
+          }
         } else {
-          const savedBlocked = localStorage.getItem("@agenday:blockedTimeSlots");
-          if (savedBlocked) setBlockedTimeSlots(JSON.parse(savedBlocked));
+          setBlockedTimeSlots(localBlocked);
         }
       } catch (e) {
         console.error("Erro ao carregar agendamentos da API:", e);
+        setAppointments(localAppts);
+        setClosedDates(localClosed);
+        setBlockedTimeSlots(localBlocked);
       }
 
       setIsLoaded(true);
     }
+
 
     loadData();
   }, []);
@@ -170,12 +218,19 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
 
   const toggleTimeSlot = async (dateStr: string, time: string) => {
     const key = `${dateStr}-${time}`;
-    const isBlocked = blockedTimeSlots.includes(key);
-    const newBlocked = isBlocked ? blockedTimeSlots.filter(k => k !== key) : [...blockedTimeSlots, key];
-    setBlockedTimeSlots(newBlocked);
+    let isCurrentlyBlocked = false;
+
+    setBlockedTimeSlots(prev => {
+      isCurrentlyBlocked = prev.includes(key);
+      if (isCurrentlyBlocked) {
+        return prev.filter(k => k !== key);
+      } else {
+        return [...prev, key];
+      }
+    });
 
     try {
-      if (isBlocked) {
+      if (isCurrentlyBlocked) {
         await fetch(`/api/blocked-slots?slotKey=${encodeURIComponent(key)}`, { method: "DELETE" });
       } else {
         await fetch("/api/blocked-slots", {
@@ -186,6 +241,27 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
       }
     } catch (e) {
       console.error("Erro ao alterar horário bloqueado:", e);
+    }
+  };
+
+  const blockTimeSlots = async (dateStr: string, times: string[]) => {
+    const keysToAdd = times.map(t => `${dateStr}-${t}`);
+
+    setBlockedTimeSlots(prev => {
+      const nextSet = new Set([...prev, ...keysToAdd]);
+      return Array.from(nextSet);
+    });
+
+    for (const key of keysToAdd) {
+      try {
+        await fetch("/api/blocked-slots", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slotKey: key })
+        });
+      } catch (e) {
+        console.error("Erro ao bloquear horários:", e);
+      }
     }
   };
 
@@ -277,7 +353,8 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
       closedDates,
       toggleDateClosed,
       blockedTimeSlots,
-      toggleTimeSlot
+      toggleTimeSlot,
+      blockTimeSlots
     }}>
       {children}
     </AppointmentsContext.Provider>

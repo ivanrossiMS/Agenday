@@ -9,14 +9,16 @@ import {
   CalendarDays, Users, Gift, MessageCircle, Ban, 
   CheckCircle2, DollarSign, FileText, QrCode, Plus, Trash2, Edit3, Image as ImageIcon, Layout, X,
   TrendingUp, PieChart, CreditCard, Filter, Sparkles, ChevronDown, Grid, Palette, Cake, LogOut, UserCircle, Camera, Search, User,
-  Star, RefreshCw, Clock, Send, Eye, Settings, UploadCloud, Lock, Unlock, XCircle, Bell
+  Star, RefreshCw, Clock, Send, Eye, Settings, UploadCloud, Lock, Unlock, XCircle, Bell, Power, UserX, UserCheck, Mail, Phone
 } from "lucide-react";
 import styles from "./page.module.css";
-import { useAppointments } from "@/context/AppointmentsContext";
+import { useAppointments, Appointment } from "@/context/AppointmentsContext";
 import { useClients, ClientItem } from "@/context/ClientsContext";
 import Calendar from "@/components/Calendar";
 import { useLoyalty } from "@/context/LoyaltyContext";
 import EditProfileModal from "@/components/EditProfileModal";
+import { compressImage } from "@/lib/imageUtils";
+
 
 const timeToMins = (t: string) => {
   if (!t) return 0;
@@ -39,10 +41,10 @@ const getInitials = (name: string) => {
 const getFirstName = (name: string) => name ? name.split(" ")[0] : "";
 
 export default function AdminDashboard() {
-  const { user, logout, updateProfile } = useAuth();
+  const { user, logout, updateProfile, inactivateProfile, deleteProfile } = useAuth();
   const { services, addService, updateService, deleteService } = useServices();
   const { settings, updateSettings } = useSiteSettings();
-  const { appointments, updateStatus, updateAppointment, deleteAppointment, addAppointment, closedDates, toggleDateClosed, blockedTimeSlots, toggleTimeSlot } = useAppointments();
+  const { appointments, updateStatus, updatePayment, updateAppointment, deleteAppointment, addAppointment, closedDates, toggleDateClosed, blockedTimeSlots, toggleTimeSlot, blockTimeSlots } = useAppointments();
   const { clients, updateClient, deleteClient, addClient } = useClients();
   const { settings: loyaltySettings, updateSettings: updateLoyaltySettings, claims: loyaltyClaims, getAllStats, getUserStats, claimPrize } = useLoyalty();
   const router = useRouter();
@@ -53,6 +55,8 @@ export default function AdminDashboard() {
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [blockStart, setBlockStart] = useState("09:00");
   const [blockEnd, setBlockEnd] = useState("12:00");
+  const [confirmPaymentAppt, setConfirmPaymentAppt] = useState<Appointment | null>(null);
+  const [selectedDetailAppt, setSelectedDetailAppt] = useState<Appointment | null>(null);
   
   // Profile State
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -91,18 +95,21 @@ export default function AdminDashboard() {
     aboutImage: "",
     businessStart: "09:00",
     businessEnd: "18:00",
+    workDays: [1, 2, 3, 4, 5, 6],
     whatsappNumber: "",
+
     salonAddress: "",
     mapsLink: "",
     preparationSteps: [],
+    logoUrl: "",
   });
-  
+
   const [birthdayFilter, setBirthdayFilter] = useState<"month" | "day" | "all">("month");
   const [bdaySelectedMonth, setBdaySelectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [bdaySearch, setBdaySearch] = useState<string>("");
 
   // Financial Filters State
-  const [finDateFilter, setFinDateFilter] = useState<"all" | "today" | "this_month">("all");
+  const [finDateFilter, setFinDateFilter] = useState<"all" | "today" | "yesterday" | "last_7_days" | "last_30_days" | "this_month" | "last_month" | "this_year">("all");
   const [finStatusFilter, setFinStatusFilter] = useState<"all" | "paid" | "pending" | "paid_pix" | "paid_credit" | "paid_debit" | "open">("all");
   const [finClientFilter, setFinClientFilter] = useState<string>("all");
 
@@ -157,11 +164,16 @@ export default function AdminDashboard() {
       } else {
         d = Number(parts[0]); m = Number(parts[1]); y = Number(parts[2]);
       }
+      const currentYear = new Date().getFullYear();
+      const age = (y > 1900 && y <= currentYear) ? currentYear - y : null;
+
       return {
         name: c.name,
         dateStr: `${d.toString().padStart(2, "0")}/${m.toString().padStart(2, "0")}`,
         day: d,
         month: m,
+        year: y,
+        age: age,
         phone: c.phone || "",
         dateObj: new Date(new Date().getFullYear(), m - 1, d)
       };
@@ -170,6 +182,7 @@ export default function AdminDashboard() {
        if (a.month !== b.month) return a.month - b.month;
        return a.day - b.day;
     });
+
 
   const upcomingBirthdays = allBirthdays
     .filter(b => (b.month === currentMonthNum && b.day >= currentDay) || (b.month > currentMonthNum))
@@ -196,6 +209,7 @@ export default function AdminDashboard() {
       router.push("/login");
     }
   }, [user, router]);
+
   
   useEffect(() => {
     if (settings) {
@@ -208,13 +222,17 @@ export default function AdminDashboard() {
         aboutImage: settings.aboutImage || "",
         businessStart: settings.businessStart || "09:00",
         businessEnd: settings.businessEnd || "18:00",
+        workDays: settings.workDays || [1, 2, 3, 4, 5, 6],
         whatsappNumber: settings.whatsappNumber || "",
+
         salonAddress: settings.salonAddress || "",
         mapsLink: settings.mapsLink || "",
         preparationSteps: settings.preparationSteps || [],
+        logoUrl: settings.logoUrl || "",
       });
     }
   }, [settings]);
+
 
 
   const handleEditProfileOpen = () => {
@@ -227,6 +245,18 @@ export default function AdminDashboard() {
     setShowEditProfileModal(false);
   };
 
+  const handleOpenNewClientModal = () => {
+    setClientForm({
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      birthDate: "",
+      photoUrl: ""
+    });
+    setShowEditClientModal(true);
+  };
+
   const handleEditClientClick = (client: ClientItem) => {
     setClientForm(client);
     setShowEditClientModal(true);
@@ -234,11 +264,26 @@ export default function AdminDashboard() {
 
   const handleSaveClient = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!clientForm.name || !clientForm.email) {
+      alert("Por favor, preencha o Nome e E-mail do cliente.");
+      return;
+    }
+
     if (clientForm.id) {
       updateClient(clientForm.id, clientForm);
+    } else {
+      addClient({
+        name: clientForm.name,
+        email: clientForm.email,
+        phone: clientForm.phone || "",
+        address: clientForm.address || "",
+        birthDate: clientForm.birthDate || "",
+        photoUrl: clientForm.photoUrl || "",
+      });
     }
     setShowEditClientModal(false);
   };
+
 
   const handleDeleteClient = (id: string) => {
     if (confirm("Tem certeza que deseja excluir este cliente e todos os seus agendamentos futuros?")) {
@@ -264,41 +309,27 @@ export default function AdminDashboard() {
     }
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setProfileForm({ ...profileForm, photo: event.target.result as string });
-        }
-      };
-      reader.readAsDataURL(e.target.files[0]);
+      const compressed = await compressImage(e.target.files[0], 400, 400, 0.85);
+      setProfileForm(prev => ({ ...prev, photo: compressed }));
     }
   };
 
-  const handleServiceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleServiceImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setSrvImage(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(e.target.files[0]);
+      const compressed = await compressImage(e.target.files[0], 800, 800, 0.82);
+      setSrvImage(compressed);
     }
   };
 
-  const handleProfPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setSrvProfPhoto(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(e.target.files[0]);
+      const compressed = await compressImage(e.target.files[0], 400, 400, 0.85);
+      setSrvProfPhoto(compressed);
     }
   };
+
 
 
   const handleSendReminder = (phone: string, clientName: string) => {
@@ -371,9 +402,19 @@ export default function AdminDashboard() {
   };
 
   const handleSendBirthday = (phone: string, clientName: string) => {
-    const msg = `Parabéns ${clientName}! 🎂 Desejamos muitas felicidades e preparamos um presente especial para você: 15% OFF no seu próximo serviço de beleza conosco!`;
-    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+    let targetPhone = phone ? phone.replace(/\D/g, "") : "";
+    if (!targetPhone) {
+      const inputPhone = prompt(`Digite o WhatsApp do(a) cliente ${clientName}:`, "");
+      if (!inputPhone) return;
+      targetPhone = inputPhone.replace(/\D/g, "");
+    }
+    const salonName = "Fran Marinho | Studio de Beleza";
+
+
+    const msg = `Olá ${clientName}! 🥳🎂🎉%0A%0AToda a nossa equipe do *${salonName}* deseja a você um Feliz Aniversário repleto de saúde, paz, alegria e muitas realizações! ✨%0A%0APara celebrar esse dia tão especial com você, preparamos um presente exclusivo no seu próximo atendimento conosco! 🎁💖%0A%0AVenha comemorar sua beleza com a gente! 🥰✨`;
+    window.open(`https://wa.me/${targetPhone}?text=${msg}`, '_blank');
   };
+
 
   const handleSendReceipt = (phone: string, clientName: string, service: string, price: number) => {
     const msg = `Olá ${clientName}! Segue o comprovante do seu agendamento.%0A%0A*Serviços:* ${service}%0A*Total:* R$ ${price},00%0A*Status:* PAGO%0A%0AAgradecemos a preferência! ✨`;
@@ -400,6 +441,41 @@ export default function AdminDashboard() {
   const [apptClientName, setApptClientName] = useState("");
   const [apptPaymentStatus, setApptPaymentStatus] = useState("open");
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+
+  // Lock background scrolling when any modal is active
+  useEffect(() => {
+    const isAnyModalOpen = Boolean(
+      selectedDetailAppt || 
+      confirmPaymentAppt || 
+      showBlockModal || 
+      showEditProfileModal || 
+      showLoyaltySettings || 
+      showLoyaltyPreview ||
+      showApptModal ||
+      showServiceForm ||
+      showEditClientModal
+    );
+
+    if (isAnyModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [
+    selectedDetailAppt, 
+    confirmPaymentAppt, 
+    showBlockModal, 
+    showEditProfileModal, 
+    showLoyaltySettings, 
+    showLoyaltyPreview,
+    showApptModal,
+    showServiceForm,
+    showEditClientModal
+  ]);
 
   // Lista unificada de clientes cadastrados no banco de dados
   const allClientSuggestions = useMemo(() => {
@@ -599,8 +675,11 @@ export default function AdminDashboard() {
   };
 
   const selectedDateStr = `${String(selectedDate.getDate()).padStart(2, '0')}/${String(selectedDate.getMonth() + 1).padStart(2, '0')}/${selectedDate.getFullYear()}`;
-  const isSelectedDateClosed = closedDates.includes(selectedDateStr);
+  const activeWorkDays = settings?.workDays || [1, 2, 3, 4, 5, 6];
+  const isWorkDay = activeWorkDays.includes(selectedDate.getDay());
+  const isSelectedDateClosed = closedDates.includes(selectedDateStr) || !isWorkDay;
   const agendaAberta = !isSelectedDateClosed;
+
   
   const parsedClosedDates = closedDates.map(dStr => {
     const [dd, mm, yyyy] = dStr.split('/');
@@ -630,9 +709,41 @@ export default function AdminDashboard() {
     // Filtro de Cliente
     if (finClientFilter !== 'all' && a.clientEmail !== finClientFilter) return false;
 
-    // Filtro de Data
-    if (finDateFilter === 'today' && a.date !== selectedDateStr) return false;
-    if (finDateFilter === 'this_month' && !a.date.endsWith(currentMonthStr)) return false;
+    // Filtro de Data / Período
+    if (finDateFilter !== 'all') {
+      const parts = a.date.split('/');
+      if (parts.length === 3) {
+        const [dd, mm, yyyy] = parts.map(Number);
+        const apptDate = new Date(yyyy, mm - 1, dd);
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        if (finDateFilter === 'today') {
+          if (a.date !== selectedDateStr && (apptDate.getDate() !== now.getDate() || apptDate.getMonth() !== now.getMonth() || apptDate.getFullYear() !== now.getFullYear())) return false;
+        } else if (finDateFilter === 'yesterday') {
+          const yesterday = new Date(todayStart);
+          yesterday.setDate(yesterday.getDate() - 1);
+          if (apptDate.getDate() !== yesterday.getDate() || apptDate.getMonth() !== yesterday.getMonth() || apptDate.getFullYear() !== yesterday.getFullYear()) return false;
+        } else if (finDateFilter === 'last_7_days') {
+          const sevenDaysAgo = new Date(todayStart);
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+          const endOfToday = new Date(todayStart.getTime() + 86400000 - 1);
+          if (apptDate < sevenDaysAgo || apptDate > endOfToday) return false;
+        } else if (finDateFilter === 'last_30_days') {
+          const thirtyDaysAgo = new Date(todayStart);
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+          const endOfToday = new Date(todayStart.getTime() + 86400000 - 1);
+          if (apptDate < thirtyDaysAgo || apptDate > endOfToday) return false;
+        } else if (finDateFilter === 'this_month') {
+          if (apptDate.getMonth() !== now.getMonth() || apptDate.getFullYear() !== now.getFullYear()) return false;
+        } else if (finDateFilter === 'last_month') {
+          const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          if (apptDate.getMonth() !== lastMonthDate.getMonth() || apptDate.getFullYear() !== lastMonthDate.getFullYear()) return false;
+        } else if (finDateFilter === 'this_year') {
+          if (apptDate.getFullYear() !== now.getFullYear()) return false;
+        }
+      }
+    }
     
     // Filtro de Status Avançado
     if (finStatusFilter !== 'all') {
@@ -664,9 +775,13 @@ export default function AdminDashboard() {
   const totalBusinessMins = Math.max(0, bEnd - bStart);
 
   const timelineSlots = generateTimeline();
-  const blockedSlotsCount = timelineSlots.filter(slot => 
-    blockedTimeSlots.includes(`${selectedDateStr}-${slot}`)
-  ).length;
+  const effectiveBlockedSlots = timelineSlots.filter(slot => {
+    if (!blockedTimeSlots.includes(`${selectedDateStr}-${slot}`)) return false;
+    const hasAppts = getApptsForSlot(slot).length > 0;
+    const isOngoing = !!getOngoingApptForSlot(slot);
+    return !hasAppts && !isOngoing;
+  });
+  const blockedSlotsCount = effectiveBlockedSlots.length;
   const blockedMins = blockedSlotsCount * 30;
 
   const freeMins = isSelectedDateClosed 
@@ -681,8 +796,18 @@ export default function AdminDashboard() {
       {/* Sidebar Ultra Moderna */}
       <aside className={styles.sidebar}>
         <div className={styles.sidebarLogo}>
-          <Sparkles size={32} color="var(--color-primary-main)" /> Fran Marinho
+          {settings?.logoUrl ? (
+            <img src={settings.logoUrl} alt="Logo" className={styles.sidebarLogoImg} />
+          ) : (
+            <div className={styles.sidebarLogoBadge}>
+              <Sparkles size={18} color="#ffffff" />
+            </div>
+          )}
+          <span className={styles.sidebarLogoText}>
+            Fran <span className={styles.sidebarLogoHighlight}>Marinho</span>
+          </span>
         </div>
+
         
         <nav className={styles.sidebarNav}>
           <button className={`${styles.sidebarTab} ${activeTab === 'dashboard' ? styles.sidebarTabActive : ''}`} onClick={() => setActiveTab('dashboard')}>
@@ -758,29 +883,31 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className={styles.headerStats}>
-            <div className={styles.headerStatBadge}>
-              <div className={styles.headerStatIcon}><DollarSign size={20} /></div>
-              <div>
-                <div className={styles.headerStatValue}>R$ {totalRevenue},00</div>
-                <div className={styles.headerStatLabel}>Receita prevista ({selectedDateStr})</div>
+          {activeTab === "dashboard" && (
+            <div className={styles.headerStats}>
+              <div className={styles.headerStatBadge}>
+                <div className={styles.headerStatIcon}><DollarSign size={20} /></div>
+                <div className={styles.headerStatText}>
+                  <div className={styles.headerStatValue}>R$ {totalRevenue},00</div>
+                  <div className={styles.headerStatLabel}>Receita prevista ({selectedDateStr})</div>
+                </div>
+              </div>
+              <div className={styles.headerStatBadge}>
+                <div className={styles.headerStatIconGreen}><CheckCircle2 size={20} /></div>
+                <div className={styles.headerStatText}>
+                  <div className={styles.headerStatValue}>R$ {paidRevenue},00</div>
+                  <div className={styles.headerStatLabel}>Pagamentos aprovados (IA)</div>
+                </div>
+              </div>
+              <div className={styles.headerStatBadge}>
+                <div className={styles.headerStatIcon} style={{background: '#fef2f2', color: 'var(--color-primary)'}}><Users size={20} /></div>
+                <div className={styles.headerStatText}>
+                  <div className={styles.headerStatValue}>{dayAppointments.length}</div>
+                  <div className={styles.headerStatLabel}>Clientes agendados ({selectedDateStr})</div>
+                </div>
               </div>
             </div>
-            <div className={styles.headerStatBadge}>
-              <div className={styles.headerStatIconGreen}><CheckCircle2 size={20} /></div>
-              <div>
-                <div className={styles.headerStatValue}>R$ {paidRevenue},00</div>
-                <div className={styles.headerStatLabel}>Pagamentos aprovados (IA)</div>
-              </div>
-            </div>
-            <div className={styles.headerStatBadge}>
-              <div className={styles.headerStatIcon} style={{background: '#fef2f2', color: 'var(--color-primary)'}}><Users size={20} /></div>
-              <div>
-                <div className={styles.headerStatValue}>{dayAppointments.length}</div>
-                <div className={styles.headerStatLabel}>Clientes agendados ({selectedDateStr})</div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
       {activeTab === "dashboard" && (
@@ -793,17 +920,23 @@ export default function AdminDashboard() {
                   <div className={styles.agendaDateSelector}>
                     <CalendarDays size={24} color="var(--color-primary-dark)" />
                     <div>
-                      <div className={styles.agendaDateTitle}>Agenda do Dia</div>
+                      <div className={styles.agendaDateTitleRow}>
+                        <span className={styles.agendaDateTitle}>Agenda do Dia</span>
+                        <div className={styles.dayApptsPill}>
+                          <Sparkles size={13} className={styles.sparkleIcon} />
+                          <span>{dayAppointments.length} {dayAppointments.length === 1 ? 'agendamento' : 'agendamentos'}</span>
+                        </div>
+                      </div>
                       <div className={styles.agendaDateSubtitle}>
                         {selectedDate.toLocaleDateString('pt-BR', { weekday: 'long' }).charAt(0).toUpperCase() + selectedDate.toLocaleDateString('pt-BR', { weekday: 'long' }).slice(1)}, {selectedDate.getDate()} de {selectedDate.toLocaleDateString('pt-BR', { month: 'long' })}
                       </div>
                     </div>
                   </div>
                   
-                  <div className={styles.mobileWrap} style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                  <div className={styles.mobileWrap}>
+                    <div className={styles.agendaNavContainer}>
                       <button className={styles.agendaNavBtn} onClick={() => setSelectedDate(new Date(selectedDate.getTime() - 86400000))}>&lt;</button>
-                      <button className={styles.agendaNavBtn} onClick={() => setSelectedDate(new Date())} style={{ width: 'auto', padding: '0 12px', fontSize: '0.85rem' }}>Hoje</button>
+                      <button className={`${styles.agendaNavBtn} ${styles.agendaNavBtnToday}`} onClick={() => setSelectedDate(new Date())}>Hoje</button>
                       <button className={styles.agendaNavBtn} onClick={() => setSelectedDate(new Date(selectedDate.getTime() + 86400000))}>&gt;</button>
                     </div>
                     
@@ -816,7 +949,7 @@ export default function AdminDashboard() {
                     <button 
                       className={isSelectedDateClosed ? "btn-secondary" : "btn-primary"} 
                       onClick={() => !isSelectedDateClosed && handleOpenNewAppt()} 
-                      style={{ padding: '10px 16px', borderRadius: '12px', opacity: isSelectedDateClosed ? 0.6 : 1, cursor: isSelectedDateClosed ? 'not-allowed' : 'pointer' }}
+                      style={{ padding: '10px 16px', borderRadius: '12px', opacity: isSelectedDateClosed ? 0.6 : 1, cursor: isSelectedDateClosed ? 'not-allowed' : 'pointer', width: '100%', justifyContent: 'center' }}
                       disabled={isSelectedDateClosed}
                     >
                       {isSelectedDateClosed ? <Ban size={16} /> : <Plus size={16} />} {isSelectedDateClosed ? "Agenda Fechada" : "Novo agendamento"}
@@ -834,10 +967,10 @@ export default function AdminDashboard() {
                   <div className={styles.summaryItem}>
                     <CheckCircle2 size={18} className={styles.summaryIcon} style={{color: '#22c55e'}} /> {freeHours}h livres
                   </div>
-                  {generateTimeline().filter(slot => blockedTimeSlots.includes(`${selectedDateStr}-${slot}`)).length > 0 && (
+                  {blockedSlotsCount > 0 && (
                     <div className={styles.summaryItemBlocked}>
                       <Ban size={16} className={styles.summaryIconBlocked} />
-                      {generateTimeline().filter(slot => blockedTimeSlots.includes(`${selectedDateStr}-${slot}`)).length} {generateTimeline().filter(slot => blockedTimeSlots.includes(`${selectedDateStr}-${slot}`)).length === 1 ? 'bloqueado' : 'bloqueados'}
+                      {blockedSlotsCount} {blockedSlotsCount === 1 ? 'bloqueado' : 'bloqueados'}
                     </div>
                   )}
                 </div>
@@ -880,106 +1013,69 @@ export default function AdminDashboard() {
                           )}
                           
                           {filteredApts.length > 0 ? (
-                            filteredApts.map(apt => (
-                              <div key={apt.id} className={`${styles.agendaItemTimeline} ${apt.status === 'confirmed' ? styles.confirmed : ''} ${apt.status === 'completed' ? styles.completed : ''}`}>
-                                <div className={styles.cardLeft}>
-                                  <div className={styles.cardAvatar}>
-                                    {getInitials(apt.clientName)}
-                                  </div>
-                                  <div className={styles.cardDetails}>
-                                    <div className={styles.clientName}>
-                                      {apt.clientName}
-                                      {!clients.some(c => c.email === apt.clientEmail) && (
-                                        <span style={{ marginLeft: 8, fontSize: "0.7rem", backgroundColor: "#fef2f2", color: "#ef4444", padding: "2px 6px", borderRadius: "12px", border: "1px solid #fecaca", fontWeight: 600 }}>Excluído</span>
-                                      )}
-                                    </div>
-                                    <div className={styles.serviceInfo}>{apt.service}</div>
-                                    <div className={styles.cardMetaRow}>
-                                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#1e293b', fontWeight: 600 }}>
-                                        <CalendarDays size={14} color="#64748b" /> {apt.time} - {apt.endTime || "N/A"}
-                                      </span>
-                                      <span style={{ color: '#64748b' }}>•</span>
-                                      <span style={{ color: '#1e293b', fontWeight: 600 }}>R$ {apt.price},00</span>
-                                    </div>
-                                    <div className={styles.cardBadges}>
-                                      {apt.status === 'confirmed' && <span className={`${styles.badge} ${styles.badgeGreen}`}>Confirmado</span>}
-                                      {apt.status === 'pending' && <span className={`${styles.badge} ${styles.badgeYellow}`}>Pendente</span>}
-                                      {apt.status === 'completed' && <span className={`${styles.badge} ${styles.badgeGray}`}>Concluído</span>}
-                                      
-                                      {apt.paymentStatus.includes('paid') ? (
-                                        <span className={`${styles.badge} ${styles.badgeGreen}`}>Pago via {apt.paymentStatus.replace('paid_', '')}</span>
+                            filteredApts.map(apt => {
+                              const clientObj = clients.find(c => c.email === apt.clientEmail || c.name.toLowerCase() === apt.clientName.toLowerCase());
+                              const clientPhoto = clientObj?.photoUrl || (clientObj as any)?.photo;
+
+                              return (
+                                <div 
+                                  key={apt.id} 
+                                  className={`${styles.agendaItemTimeline} ${apt.status === 'confirmed' ? styles.confirmed : ''} ${apt.status === 'completed' ? styles.completed : ''} ${apt.status === 'canceled' ? styles.canceled : ''}`}
+                                  onClick={() => setSelectedDetailAppt(apt)}
+                                  title="Clique para ver os detalhes completos do agendamento"
+                                  style={{ cursor: 'pointer' }}
+                                >
+                                  <div className={styles.cardLeft}>
+                                    <div className={styles.cardAvatar}>
+                                      {clientPhoto ? (
+                                        <img src={clientPhoto} alt={apt.clientName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                                       ) : (
-                                        <span className={`${styles.badge} ${styles.badgeYellow}`}>Pagamento pendente</span>
+                                        getInitials(apt.clientName)
                                       )}
+                                    </div>
+                                    <div className={styles.cardDetails}>
+                                      <div className={styles.clientName}>
+                                        {apt.clientName}
+                                        {!clientObj && (
+                                          <span style={{ marginLeft: 8, fontSize: "0.7rem", backgroundColor: "#fef2f2", color: "#ef4444", padding: "2px 6px", borderRadius: "12px", border: "1px solid #fecaca", fontWeight: 600 }}>Excluído</span>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Serviços agendados em texto normal lado a lado */}
+                                      {apt.service && (
+                                        <div className={styles.cardServicesText}>
+                                          {apt.service.split(",").map(s => s.trim()).filter(Boolean).join(" • ")}
+                                        </div>
+                                      )}
+
+
+
+                                      <div className={styles.cardMetaRow}>
+
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#1e293b', fontWeight: 600 }}>
+                                          <CalendarDays size={14} color="#64748b" /> {apt.time} - {apt.endTime || "N/A"}
+                                        </span>
+                                        <span style={{ color: '#64748b' }}>•</span>
+                                        <span style={{ color: '#1e293b', fontWeight: 600 }}>R$ {apt.price},00</span>
+                                      </div>
+                                      <div className={styles.cardBadges}>
+                                        {apt.status === 'confirmed' && <span className={`${styles.badge} ${styles.badgeGreen}`}>Confirmado</span>}
+                                        {apt.status === 'pending' && <span className={`${styles.badge} ${styles.badgeYellow}`}>Pendente</span>}
+                                        {apt.status === 'completed' && <span className={`${styles.badge} ${styles.badgeGray}`}>Concluído</span>}
+                                        {apt.status === 'canceled' && <span className={`${styles.badge} ${styles.badgeRed}`}>Cancelado</span>}
+                                        
+                                        {apt.paymentStatus.includes('paid') ? (
+                                          <span className={`${styles.badge} ${styles.badgeGreen}`}>Pago via {apt.paymentStatus.replace('paid_', '')}</span>
+                                        ) : (
+                                          <span className={`${styles.badge} ${styles.badgeYellow}`}>Pagamento pendente</span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                                <div className={styles.actionButtons}>
-                                  {/* Botão Confirmar */}
-                                  <button 
-                                    className={styles.actionBtnGroup} 
-                                    onClick={() => updateStatus(apt.id, apt.status === 'confirmed' ? 'pending' : 'confirmed')}
-                                    style={apt.status === 'confirmed' ? { color: '#15803D' } : {}}
-                                    title={apt.status === 'confirmed' ? 'Agendamento já confirmado (clique para alterar)' : 'Confirmar agendamento'}
-                                  >
-                                    <div 
-                                      className={styles.iconBtn} 
-                                      style={apt.status === 'confirmed' ? { background: '#DCFCE7', color: '#16A34A' } : {}}
-                                    >
-                                      <CheckCircle2 size={18} />
-                                    </div>
-                                    <span>{apt.status === 'confirmed' ? 'Confirmado' : 'Confirmar'}</span>
-                                  </button>
 
-                                  {/* Botão Cancelar */}
-                                  <button 
-                                    className={styles.actionBtnGroup} 
-                                    onClick={() => {
-                                      if (apt.status === 'canceled') {
-                                        updateStatus(apt.id, 'pending');
-                                      } else if (confirm(`Deseja realmente cancelar o agendamento de ${apt.clientName}?`)) {
-                                        updateStatus(apt.id, 'canceled');
-                                        handleSendCancellationForAppt(apt);
-                                      }
-                                    }}
-                                    style={apt.status === 'canceled' ? { color: 'var(--color-error)' } : {}}
-                                    title={apt.status === 'canceled' ? 'Agendamento cancelado (clique para reativar)' : 'Cancelar agendamento'}
-                                  >
-                                    <div 
-                                      className={styles.iconBtn} 
-                                      style={apt.status === 'canceled' ? { background: '#FEF2F2', color: 'var(--color-error)' } : {}}
-                                    >
-                                      <XCircle size={18} />
-                                    </div>
-                                    <span>{apt.status === 'canceled' ? 'Cancelado' : 'Cancelar'}</span>
-                                  </button>
-
-                                  {/* Botão Lembrete (WhatsApp) */}
-                                  <button 
-                                    className={styles.actionBtnGroup} 
-                                    onClick={() => handleSendReminderForAppt(apt)}
-                                    title="Enviar lembrete do agendamento via WhatsApp"
-                                  >
-                                    <div className={styles.iconBtn} style={{ background: '#E0F2FE', color: '#0284C7' }}>
-                                      <Bell size={18} />
-                                    </div>
-                                    <span>Lembrete</span>
-                                  </button>
-
-                                  {/* Botão Editar */}
-                                  <button 
-                                    className={styles.actionBtnGroup} 
-                                    onClick={() => handleOpenEditAppt(apt)}
-                                    title="Editar detalhes do agendamento"
-                                  >
-                                    <div className={styles.iconBtn}>
-                                      <Edit3 size={18} />
-                                    </div>
-                                    <span>Editar</span>
-                                  </button>
-                                </div>
-                              </div>
-                            ))
+                              );
+                            })
                           ) : (
                             isSelectedDateClosed ? (
                               <div className={styles.closedSlotCard}>
@@ -1080,6 +1176,7 @@ export default function AdminDashboard() {
                      disabledDaysOfWeek={[0, 1]}
                      closedDates={parsedClosedDates}
                      adminMode={true}
+                     appointments={appointments}
                    />
                 </div>
               </div>
@@ -1127,13 +1224,14 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <button 
-                        onClick={() => handleSendBirthday("5511999999999", b.name)}
-                        style={{ padding: '6px 12px', background: '#fff', color: '#e11d48', border: 'none', borderRadius: 20, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
+                        onClick={() => handleSendBirthday(b.phone, b.name)}
+                        style={{ padding: '6px 14px', background: '#fff', color: '#e11d48', border: 'none', borderRadius: 20, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
                         onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                         onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                       >
-                        Mimar
+                        Felicitar 🎉
                       </button>
+
                     </div>
                   ))}
                 </div>
@@ -1148,21 +1246,21 @@ export default function AdminDashboard() {
           <div className={styles.statsGrid}>
             <div className={styles.statCard}>
               <div className={styles.statIcon} style={{ background: "var(--color-primary-light)", color: "var(--color-primary-dark)" }}><TrendingUp size={28} /></div>
-              <div>
+              <div className={styles.statText}>
                 <div className={styles.statValue}>R$ {finTotal},00</div>
                 <div className={styles.statLabel}>Faturamento Total</div>
               </div>
             </div>
             <div className={styles.statCard}>
               <div className={styles.statIcon} style={{ background: "#E8F5E9", color: "#2E7D32" }}><CheckCircle2 size={28} /></div>
-              <div>
+              <div className={styles.statText}>
                 <div className={styles.statValue}>R$ {finPaid},00</div>
                 <div className={styles.statLabel}>Total Recebido (Pago)</div>
               </div>
             </div>
             <div className={styles.statCard}>
               <div className={styles.statIcon} style={{ background: "#FFF3E0", color: "#E65100" }}><CreditCard size={28} /></div>
-              <div>
+              <div className={styles.statText}>
                 <div className={styles.statValue}>R$ {finPending},00</div>
                 <div className={styles.statLabel}>A Receber (Pendente)</div>
               </div>
@@ -1199,8 +1297,13 @@ export default function AdminDashboard() {
                     style={{ background: "transparent", border: "none", outline: "none", fontSize: "0.9rem", color: "var(--color-text-main)", cursor: "pointer" }}
                   >
                     <option value="all">Todo o Período</option>
-                    <option value="this_month">Este Mês</option>
                     <option value="today">Hoje ({selectedDateStr})</option>
+                    <option value="yesterday">Ontem</option>
+                    <option value="last_7_days">Últimos 7 dias</option>
+                    <option value="last_30_days">Últimos 30 dias</option>
+                    <option value="this_month">Este Mês</option>
+                    <option value="last_month">Mês Passado</option>
+                    <option value="this_year">Este Ano</option>
                   </select>
                 </div>
                 
@@ -1278,52 +1381,54 @@ export default function AdminDashboard() {
                 <Layout size={24} color="var(--color-primary-dark)" />
                 Catálogo de Serviços
               </div>
-              <button 
-                className="btn-primary" 
-                onClick={() => {
-                  setEditingServiceId(null);
-                  setSrvName("");
-                  setSrvDesc("");
-                  setSrvPrice("");
-                  setSrvDuration("");
-                  setSrvImage("");
-                  setShowServiceForm(!showServiceForm);
-                }}
-                style={{ fontSize: "0.9rem", padding: "8px 16px" }}
-              >
-                {showServiceForm ? <><X size={18} /> Cancelar</> : <><Plus size={18} /> Novo Serviço</>}
-              </button>
+              {!showServiceForm && (
+                <button 
+                  className="btn-primary" 
+                  onClick={() => {
+                    setEditingServiceId(null);
+                    setSrvName("");
+                    setSrvDesc("");
+                    setSrvPrice("");
+                    setSrvDuration("");
+                    setSrvImage("");
+                    setShowServiceForm(true);
+                  }}
+                  style={{ fontSize: "0.9rem", padding: "8px 16px", display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <Plus size={18} /> Novo Serviço
+                </button>
+              )}
             </div>
 
             {showServiceForm && (
-              <div style={{ background: "var(--color-background)", padding: "24px", borderRadius: "var(--radius-md)", marginBottom: "32px", border: "1px solid var(--color-border)" }}>
-                <h3 style={{ marginBottom: "16px", color: "var(--color-text-main)" }}>
+              <div style={{ background: "var(--color-background)", padding: "24px", borderRadius: "20px", marginBottom: "32px", border: "1px solid var(--color-border)", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.05)" }}>
+                <h3 style={{ marginBottom: "16px", color: "var(--color-text-main)", fontSize: "1.2rem", fontWeight: 800 }}>
                   {editingServiceId ? "Editar Serviço" : "Adicionar Novo Serviço"}
                 </h3>
                 <form onSubmit={handleSaveService} style={{ display: "grid", gap: "16px", gridTemplateColumns: "1fr 1fr" }}>
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem" }}>Nome do Serviço</label>
-                    <input type="text" value={srvName} onChange={e => setSrvName(e.target.value)} required style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--color-border)" }} />
+                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600 }}>Nome do Serviço</label>
+                    <input type="text" value={srvName} onChange={e => setSrvName(e.target.value)} required style={{ width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid var(--color-border)" }} />
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem" }}>Descrição</label>
-                    <textarea value={srvDesc} onChange={e => setSrvDesc(e.target.value)} required style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--color-border)", minHeight: "80px" }} />
+                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600 }}>Descrição</label>
+                    <textarea value={srvDesc} onChange={e => setSrvDesc(e.target.value)} required style={{ width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid var(--color-border)", minHeight: "80px" }} />
                   </div>
                   <div>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem" }}>Preço (R$)</label>
-                    <input type="number" value={srvPrice} onChange={e => setSrvPrice(e.target.value)} required style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--color-border)" }} />
+                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600 }}>Preço (R$)</label>
+                    <input type="number" value={srvPrice} onChange={e => setSrvPrice(e.target.value)} required style={{ width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid var(--color-border)" }} />
                   </div>
                   <div>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem" }}>Duração (Minutos)</label>
-                    <input type="number" value={srvDuration} onChange={e => setSrvDuration(e.target.value)} required style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--color-border)" }} />
+                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600 }}>Duração (Minutos)</label>
+                    <input type="number" value={srvDuration} onChange={e => setSrvDuration(e.target.value)} required style={{ width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid var(--color-border)" }} />
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem" }}>Imagem do Serviço</label>
+                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600 }}>Imagem do Serviço</label>
                     <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                       {srvImage && (
-                        <img src={srvImage} alt="Preview do serviço" style={{ width: "60px", height: "60px", objectFit: "cover", borderRadius: "8px" }} />
+                        <img src={srvImage} alt="Preview do serviço" style={{ width: "60px", height: "60px", objectFit: "cover", borderRadius: "10px" }} />
                       )}
-                      <label style={{ cursor: "pointer", background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "12px 24px", borderRadius: "8px", fontSize: "0.9rem", color: "var(--color-text-main)", display: "inline-block" }}>
+                      <label style={{ cursor: "pointer", background: "#ffffff", border: "1px solid var(--color-border)", padding: "12px 24px", borderRadius: "10px", fontSize: "0.9rem", color: "var(--color-text-main)", display: "inline-block", fontWeight: 600 }}>
                         <Camera size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: "8px" }} />
                         Fazer upload da imagem
                         <input type="file" accept="image/*" onChange={handleServiceImageUpload} style={{ display: "none" }} />
@@ -1331,42 +1436,92 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div style={{ gridColumn: "1 / 2" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem" }}>Nome do(a) Profissional</label>
-                    <input type="text" value={srvProfName} onChange={e => setSrvProfName(e.target.value)} placeholder="Ex: Ana Silva" style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--color-border)" }} />
+                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600 }}>Nome do(a) Profissional</label>
+                    <input type="text" value={srvProfName} onChange={e => setSrvProfName(e.target.value)} placeholder="Ex: Ana Silva" style={{ width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid var(--color-border)" }} />
                   </div>
                   <div style={{ gridColumn: "2 / -1" }}>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem" }}>Foto do(a) Profissional</label>
+                    <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600 }}>Foto do(a) Profissional</label>
                     <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                       {srvProfPhoto && (
                         <img src={srvProfPhoto} alt="Preview do profissional" style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "50%" }} />
                       )}
-                      <label style={{ cursor: "pointer", background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "12px 24px", borderRadius: "8px", fontSize: "0.9rem", color: "var(--color-text-main)", display: "inline-block" }}>
+                      <label style={{ cursor: "pointer", background: "#ffffff", border: "1px solid var(--color-border)", padding: "12px 24px", borderRadius: "10px", fontSize: "0.9rem", color: "var(--color-text-main)", display: "inline-block", fontWeight: 600 }}>
                         <Camera size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: "8px" }} />
                         Fazer upload da foto
                         <input type="file" accept="image/*" onChange={handleProfPhotoUpload} style={{ display: "none" }} />
                       </label>
                     </div>
                   </div>
-                  <div style={{ gridColumn: "1 / -1", textAlign: "right" }}>
-                    <button type="submit" className="btn-primary">Salvar Serviço</button>
+
+                  {/* Botoes Lado a Lado: Cancelar e Salvar Serviço */}
+                  <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "12px" }}>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setShowServiceForm(false);
+                        setEditingServiceId(null);
+                      }}
+                      style={{
+                        padding: "14px",
+                        borderRadius: "14px",
+                        border: "1px solid #cbd5e1",
+                        background: "#ffffff",
+                        color: "#475569",
+                        fontWeight: 700,
+                        fontSize: "0.95rem",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+                        transition: "all 0.2s ease"
+                      }}
+                    >
+                      <X size={18} /> Cancelar
+                    </button>
+                    
+                    <button 
+                      type="submit" 
+                      className="btn-primary"
+                      style={{
+                        padding: "14px",
+                        borderRadius: "14px",
+                        fontWeight: 700,
+                        fontSize: "0.95rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px"
+                      }}
+                    >
+                      <CheckCircle2 size={18} /> Salvar Serviço
+                    </button>
                   </div>
                 </form>
               </div>
             )}
 
-            <div style={{ display: "grid", gap: "16px" }}>
+
+            <div className={styles.serviceCardList}>
               {services.map(service => (
-                <div key={service.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)" }}>
-                  <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-                    <img src={service.imageUrl} alt={service.name} style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px" }} />
-                    <div>
-                      <h3 style={{ fontSize: "1.1rem", marginBottom: "4px" }}>{service.name}</h3>
-                      <div style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", display: "flex", flexDirection: "column", gap: "4px" }}>
-                        <span>R$ {service.price} • {service.duration} min</span>
+                <div key={service.id} className={styles.adminServiceCard}>
+                  <div className={styles.serviceCardLeft}>
+                    <img src={service.imageUrl} alt={service.name} className={styles.serviceCardImg} />
+                    <div className={styles.serviceCardInfo}>
+                      <h3 className={styles.serviceCardTitle}>{service.name}</h3>
+                      {service.description && (
+                        <p className={styles.serviceCardDesc}>{service.description}</p>
+                      )}
+                      <div className={styles.serviceCardMetaRow}>
+                        <span className={styles.servicePriceBadge}>R$ {service.price},00</span>
+                        <span className={styles.serviceDurationBadge}>
+                          <Clock size={14} color="#64748b" /> {service.duration} min
+                        </span>
                         {service.professionalName && (
-                          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span className={styles.serviceProfBadge}>
                             {service.professionalPhotoUrl ? (
-                              <img src={service.professionalPhotoUrl} alt={service.professionalName} style={{ width: "20px", height: "20px", borderRadius: "50%", objectFit: "cover" }} />
+                              <img src={service.professionalPhotoUrl} alt={service.professionalName} style={{ width: "18px", height: "18px", borderRadius: "50%", objectFit: "cover" }} />
                             ) : (
                               <UserCircle size={16} />
                             )}
@@ -1376,13 +1531,18 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button className={styles.iconBtn} onClick={() => handleEditService(service)}><Edit3 size={18} /></button>
-                    <button className={styles.iconBtn} onClick={() => deleteService(service.id)} style={{ color: "#d32f2f" }}><Trash2 size={18} /></button>
+                  <div className={styles.serviceCardActions}>
+                    <button className={styles.serviceEditBtn} onClick={() => handleEditService(service)} title="Editar serviço">
+                      <Edit3 size={18} />
+                    </button>
+                    <button className={styles.serviceDeleteBtn} onClick={() => deleteService(service.id)} title="Excluir serviço">
+                      <Trash2 size={18} />
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
+
           </div>
         </div>
       )}
@@ -1421,6 +1581,51 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+
+                <div style={{ marginTop: "14px" }}>
+                  <label className={styles.modernLabel}>Dias de Funcionamento na Semana</label>
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "6px" }}>
+                    {[
+                      { id: 1, label: "Seg" },
+                      { id: 2, label: "Ter" },
+                      { id: 3, label: "Qua" },
+                      { id: 4, label: "Qui" },
+                      { id: 5, label: "Sex" },
+                      { id: 6, label: "Sáb" },
+                      { id: 0, label: "Dom" },
+                    ].map(day => {
+                      const currentDays = siteForm.workDays || [1, 2, 3, 4, 5, 6];
+                      const isSelected = currentDays.includes(day.id);
+                      return (
+                        <button
+                          key={day.id}
+                          type="button"
+                          onClick={() => {
+                            const updated = isSelected 
+                              ? currentDays.filter(d => d !== day.id)
+                              : [...currentDays, day.id];
+                            setSiteForm({ ...siteForm, workDays: updated });
+                          }}
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: "10px",
+                            border: isSelected ? "1px solid var(--color-primary-dark, #a85145)" : "1px solid #cbd5e1",
+                            background: isSelected ? "var(--color-primary-dark, #a85145)" : "#f8fafc",
+                            color: isSelected ? "#ffffff" : "#475569",
+                            fontWeight: 700,
+                            fontSize: "0.85rem",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                            boxShadow: isSelected ? "0 2px 8px rgba(168, 81, 69, 0.25)" : "none"
+                          }}
+                        >
+                          {day.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
 
                 <div style={{ marginTop: "8px" }}>
                   <label className={styles.modernLabel}>WhatsApp (Apenas números)</label>
@@ -1461,12 +1666,11 @@ export default function AdminDashboard() {
                         <span style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>Clique para adicionar a Logo</span>
                       </>
                     )}
-                    <input id="logoImageInput" type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                    <input id="logoImageInput" type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => setSiteForm({...siteForm, logoUrl: reader.result as string});
-                        reader.readAsDataURL(file);
+                        const compressed = await compressImage(file, 600, 600, 0.85);
+                        setSiteForm(prev => ({ ...prev, logoUrl: compressed }));
                       }
                     }} />
                   </div>
@@ -1498,12 +1702,11 @@ export default function AdminDashboard() {
                         <span style={{ fontSize: "0.95rem", color: "#64748b", fontWeight: 500 }}>Clique para selecionar</span>
                       </>
                     )}
-                    <input id="heroImageInput" type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                    <input id="heroImageInput" type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => setSiteForm({...siteForm, heroImage: reader.result as string});
-                        reader.readAsDataURL(file);
+                        const compressed = await compressImage(file, 1200, 1200, 0.82);
+                        setSiteForm(prev => ({ ...prev, heroImage: compressed }));
                       }
                     }} />
                   </div>
@@ -1543,14 +1746,14 @@ export default function AdminDashboard() {
                         <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 500 }}>Upload de imagem</span>
                       </>
                     )}
-                    <input id="aboutImageInput" type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                    <input id="aboutImageInput" type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => setSiteForm({...siteForm, aboutImage: reader.result as string});
-                        reader.readAsDataURL(file);
+                        const compressed = await compressImage(file, 1000, 1000, 0.82);
+                        setSiteForm(prev => ({ ...prev, aboutImage: compressed }));
                       }
                     }} />
+
                   </div>
                 </div>
 
@@ -2187,7 +2390,18 @@ export default function AdminDashboard() {
       {activeTab === "users" && (
         <div className={styles.mainContent}>
           <div className={styles.card}>
-            <h2 className={styles.cardTitle} style={{ marginBottom: "20px" }}>CRM de Clientes</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h2 className={styles.cardTitle} style={{ margin: 0 }}>CRM de Clientes</h2>
+              <button 
+                onClick={handleOpenNewClientModal} 
+                className="btn-primary" 
+                style={{ padding: "10px 20px", display: "flex", alignItems: "center", gap: "8px", fontWeight: 600, borderRadius: "8px", background: "var(--color-primary)", color: "white", border: "none", cursor: "pointer" }}
+              >
+                <Plus size={18} /> Novo Cliente
+              </button>
+            </div>
+
+
             <div className={styles.agendaList}>
               {clients.length === 0 ? (
                 <div className={styles.emptyState}>Nenhum cliente registrado ainda.</div>
@@ -2197,34 +2411,55 @@ export default function AdminDashboard() {
                   const ltv = clientAppts.filter(a => a.status === 'completed' || a.paymentStatus.includes('paid')).reduce((acc, curr) => acc + curr.price, 0);
 
                   return (
-                    <div key={client.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", background: "var(--color-background)" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                    <div key={client.id} className={styles.clientCardItem}>
+                      <div className={styles.clientMainInfo}>
                         {client.photoUrl ? (
-                          <img src={client.photoUrl} alt={client.name} style={{ width: "48px", height: "48px", borderRadius: "24px", objectFit: "cover" }} />
+                          <img src={client.photoUrl} alt={client.name} className={styles.clientAvatar} />
                         ) : (
-                          <div style={{ width: "48px", height: "48px", borderRadius: "24px", background: "var(--color-primary-light)", color: "var(--color-primary-dark)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold" }}>
+                          <div className={styles.clientAvatarFallback}>
                             {getInitials(client.name)}
                           </div>
                         )}
-                        <div>
-                          <strong style={{ display: "block", color: "var(--color-text)", fontSize: "1.1rem" }}>{client.name}</strong>
-                          <span style={{ fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{client.email}</span>
+
+                        <div className={styles.clientDetails}>
+                          <div className={styles.clientNameRow}>
+                            <span className={styles.clientNameText}>{client.name}</span>
+                            <span className={client.status === 'inactive' ? styles.clientStatusInactive : styles.clientStatusActive}>
+                              {client.status === 'inactive' ? 'Inativo' : 'Ativo'}
+                            </span>
+                          </div>
+
+                          <div className={styles.clientMetaRow}>
+                            <span className={styles.clientMetaItem}>
+                              <Mail size={13} color="#64748b" /> {client.email}
+                            </span>
+                            {client.phone && (
+                              <span className={styles.clientMetaItem}>
+                                <Phone size={13} color="#64748b" /> {client.phone}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: "24px", alignItems: "center", flexWrap: "wrap" }}>
-                        <div style={{ textAlign: "center" }}>
-                          <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", textTransform: "uppercase" }}>Agendamentos</div>
-                          <div style={{ fontWeight: 600, color: "var(--color-text)" }}>{clientAppts.length}</div>
+
+                      <div className={styles.clientCardFooter}>
+                        <div className={styles.clientMetricsContainer}>
+                          <div className={styles.clientMetricChip}>
+                            <CalendarDays size={14} color="#64748b" />
+                            <span><strong>{clientAppts.length}</strong> {clientAppts.length === 1 ? 'agendamento' : 'agendamentos'}</span>
+                          </div>
+                          <div className={styles.clientMetricChip}>
+                            <DollarSign size={14} color="#16a34a" />
+                            <span style={{ color: '#15803d' }}><strong>R$ {ltv},00</strong> gastos</span>
+                          </div>
                         </div>
-                        <div style={{ textAlign: "center" }}>
-                          <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", textTransform: "uppercase" }}>Valor Gasto</div>
-                          <div style={{ fontWeight: 600, color: "var(--color-primary-dark)" }}>R$ {ltv},00</div>
-                        </div>
+
                         <button 
                           onClick={() => setSelectedClientId(client.id)}
-                          style={{ padding: "8px 16px", background: "var(--color-primary)", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: 500 }}
+                          className={styles.clientProfileBtn}
                         >
-                          Ver Perfil
+                          <span>Ver Perfil</span>
+                          <User size={15} />
                         </button>
                       </div>
                     </div>
@@ -2249,53 +2484,128 @@ export default function AdminDashboard() {
 
               return (
                 <>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", paddingBottom: "16px", borderBottom: "1px solid var(--color-border)" }}>
-                    <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
+                  <div style={{ position: "relative", marginBottom: "24px", paddingBottom: "20px", borderBottom: "1px solid #e2e8f0" }}>
+                    {/* Botão de Fechar no topo superior direito */}
+                    <button 
+                      onClick={() => setSelectedClientId(null)} 
+                      style={{ 
+                        position: "absolute", 
+                        top: 0, 
+                        right: 0, 
+                        background: "#f1f5f9", 
+                        border: "none", 
+                        borderRadius: "50%", 
+                        width: "36px", 
+                        height: "36px", 
+                        cursor: "pointer", 
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center", 
+                        color: "#64748b",
+                        transition: "all 0.2s ease"
+                      }}
+                      title="Fechar"
+                    >
+                      <X size={20} />
+                    </button>
+
+                    {/* Dados do Cliente */}
+                    <div style={{ display: "flex", gap: "16px", alignItems: "center", paddingRight: "44px" }}>
                       {client.photoUrl ? (
-                        <img src={client.photoUrl} alt={client.name} style={{ width: "80px", height: "80px", borderRadius: "40px", objectFit: "cover" }} />
+                        <img src={client.photoUrl} alt={client.name} style={{ width: "72px", height: "72px", borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }} />
                       ) : (
-                        <div style={{ width: "80px", height: "80px", borderRadius: "40px", background: "var(--color-primary-light)", color: "var(--color-primary-dark)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "2rem" }}>
+                        <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "linear-gradient(135deg, var(--color-primary-light, #fdf2f0), #ffffff)", color: "var(--color-primary-dark, #a85145)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "1.8rem", border: "2px solid rgba(200, 109, 81, 0.3)" }}>
                           {getInitials(client.name)}
                         </div>
                       )}
                       <div>
-                        <h2 style={{ fontSize: "1.8rem", color: "var(--color-text)", margin: 0, display: "flex", alignItems: "center", gap: "12px" }}>
+                        <h2 style={{ fontSize: "1.35rem", color: "#1e293b", margin: 0, fontWeight: 800, display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                           {client.name}
-                        </h2>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "8px" }}>
-                          <span style={{ color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "8px" }}>
-                            📧 {client.email}
+                          <span style={{ fontSize: "0.75rem", fontWeight: 700, padding: "3px 8px", borderRadius: "10px", background: client.status === 'inactive' ? '#f1f5f9' : '#dcfce7', color: client.status === 'inactive' ? '#64748b' : '#15803d', border: client.status === 'inactive' ? '1px solid #cbd5e1' : '1px solid #bbf7d0' }}>
+                            {client.status === 'inactive' ? 'Inativo' : 'Ativo'}
                           </span>
-                          {client.phone && (
-                            <span style={{ color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "8px" }}>
-                              📱 {client.phone}
-                            </span>
-                          )}
-                          {client.address && (
-                            <span style={{ color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "8px" }}>
-                              📍 {client.address}
-                            </span>
-                          )}
-                          {client.birthDate && (
-                            <span style={{ color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "8px" }}>
-                              🎂 {new Date(client.birthDate).toLocaleDateString("pt-BR")}
-                            </span>
-                          )}
+                        </h2>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginTop: "6px", fontSize: "0.85rem", color: "#64748b" }}>
+                          {client.email && <span>📧 {client.email}</span>}
+                          {client.phone && <span>📱 {client.phone}</span>}
+                          {client.address && <span>📍 {client.address}</span>}
+                          {client.birthDate && <span>🎂 {new Date(client.birthDate).toLocaleDateString("pt-BR")}</span>}
                         </div>
                       </div>
                     </div>
-                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                      <button onClick={() => handleEditClientClick(client)} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "8px", cursor: "pointer", padding: "8px 16px", display: "flex", alignItems: "center", gap: "8px", fontWeight: 500, color: "var(--color-text)" }}>
-                        <Edit3 size={16} /> Editar
+
+                    {/* Botoes de Acao Organizados em Grid Ultra Moderno */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginTop: "20px" }}>
+                      <button 
+                        onClick={() => {
+                          const newStatus = client.status === 'inactive' ? 'active' : 'inactive';
+                          if (confirm(`Deseja realmente ${newStatus === 'inactive' ? 'inativar' : 'reativar'} o perfil de ${client.name}?`)) {
+                            updateClient(client.id, { status: newStatus });
+                          }
+                        }} 
+                        style={{ 
+                          padding: "10px 8px", 
+                          borderRadius: "12px", 
+                          border: client.status === 'inactive' ? "1px solid #bbf7d0" : "1px solid #e2e8f0", 
+                          background: client.status === 'inactive' ? "#f0fdf4" : "#f8fafc", 
+                          color: client.status === 'inactive' ? "#166534" : "#475569", 
+                          fontWeight: 700, 
+                          fontSize: "0.85rem", 
+                          cursor: "pointer", 
+                          display: "flex", 
+                          alignItems: "center", 
+                          justifyContent: "center", 
+                          gap: "6px",
+                          transition: "all 0.2s ease"
+                        }}
+                      >
+                        <Power size={15} /> {client.status === 'inactive' ? 'Ativar' : 'Inativar'}
                       </button>
-                      <button onClick={() => handleDeleteClient(client.id)} style={{ background: "#fef2f2", border: "1px solid #fee2e2", borderRadius: "8px", cursor: "pointer", padding: "8px 16px", display: "flex", alignItems: "center", gap: "8px", fontWeight: 500, color: "#ef4444" }}>
-                        <Trash2 size={16} /> Excluir
+
+                      <button 
+                        onClick={() => handleEditClientClick(client)} 
+                        style={{ 
+                          padding: "10px 8px", 
+                          borderRadius: "12px", 
+                          border: "1px solid #93c5fd", 
+                          background: "#eff6ff", 
+                          color: "#1d4ed8", 
+                          fontWeight: 700, 
+                          fontSize: "0.85rem", 
+                          cursor: "pointer", 
+                          display: "flex", 
+                          alignItems: "center", 
+                          justifyContent: "center", 
+                          gap: "6px",
+                          transition: "all 0.2s ease"
+                        }}
+                      >
+                        <Edit3 size={15} /> Editar
                       </button>
-                      <button onClick={() => setSelectedClientId(null)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <X size={24} color="var(--color-text-muted)" />
+
+                      <button 
+                        onClick={() => handleDeleteClient(client.id)} 
+                        style={{ 
+                          padding: "10px 8px", 
+                          borderRadius: "12px", 
+                          border: "1px solid #fecaca", 
+                          background: "#fef2f2", 
+                          color: "#dc2626", 
+                          fontWeight: 700, 
+                          fontSize: "0.85rem", 
+                          cursor: "pointer", 
+                          display: "flex", 
+                          alignItems: "center", 
+                          justifyContent: "center", 
+                          gap: "6px",
+                          transition: "all 0.2s ease"
+                        }}
+                      >
+                        <Trash2 size={15} /> Excluir
                       </button>
                     </div>
                   </div>
+
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "32px" }}>
                     <div style={{ padding: "20px", background: "var(--color-surface)", borderRadius: "12px", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -2399,6 +2709,17 @@ export default function AdminDashboard() {
                   <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 500 }}>Data de Nascimento *</label>
                   <input type="date" value={clientForm.birthDate || ""} onChange={e => setClientForm({...clientForm, birthDate: e.target.value})} required style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--color-border)" }} />
                 </div>
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 500 }}>Status do Perfil</label>
+                <select 
+                  value={clientForm.status || "active"} 
+                  onChange={e => setClientForm({...clientForm, status: e.target.value as "active" | "inactive"})}
+                  style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "var(--color-background)", color: "var(--color-text)" }}
+                >
+                  <option value="active">Ativo</option>
+                  <option value="inactive">Inativo</option>
+                </select>
               </div>
 
               <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid var(--color-border)", textAlign: "right" }}>
@@ -2520,33 +2841,52 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                         <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#1e293b' }}>{b.name}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fef3c7', color: '#b45309', padding: '4px 10px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 700 }}>
                             <Cake size={14} /> {b.dateStr}
                           </span>
+                          {b.age !== null && b.age > 0 && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#eff6ff', color: '#1d4ed8', padding: '4px 10px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 700, border: '1px solid #bfdbfe' }}>
+                              🎈 {b.age} anos
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
                     
-                    <div style={{ display: 'flex', gap: 12 }}>
-                      <button 
-                        onClick={() => handleSendBirthday(b.phone, b.name)}
-                        style={{ flex: 1, padding: '12px', borderRadius: 12, background: '#25D366', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
-                        onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.1)'}
-                        onMouseLeave={(e) => e.currentTarget.style.filter = 'brightness(1)'}
-                      >
-                        <MessageCircle size={18} /> WhatsApp
-                      </button>
-                      <button 
-                        onClick={() => handleSendBirthday(b.phone, b.name)}
-                        style={{ flex: 1, padding: '12px', borderRadius: 12, background: 'linear-gradient(135deg, var(--color-accent), #d4a373)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
-                        onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.1)'}
-                        onMouseLeave={(e) => e.currentTarget.style.filter = 'brightness(1)'}
-                      >
-                        <Gift size={18} /> Enviar Mimo
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => handleSendBirthday(b.phone, b.name)}
+                      style={{ 
+                        width: '100%', 
+                        padding: '14px 18px', 
+                        borderRadius: 16, 
+                        background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)', 
+                        color: '#fff', 
+                        border: 'none', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        gap: 10, 
+                        fontWeight: 800, 
+                        fontSize: '0.95rem',
+                        cursor: 'pointer', 
+                        boxShadow: '0 6px 16px rgba(37, 211, 102, 0.3)',
+                        transition: 'all 0.2s ease' 
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 8px 20px rgba(37, 211, 102, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(37, 211, 102, 0.3)';
+                      }}
+                    >
+                      <MessageCircle size={20} />
+                      <span>Felicitar Aniversariante via WhatsApp 🎉</span>
+                    </button>
                   </div>
+
                 );
               })}
             </div>
@@ -2568,8 +2908,160 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {confirmPaymentAppt && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, backdropFilter: "blur(4px)" }}>
+          <div className={styles.modal} style={{ background: "white", padding: "32px", borderRadius: "20px", width: "450px", maxWidth: "90%", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "12px", background: "#DCFCE7", color: "#16A34A", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <DollarSign size={22} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: "1.25rem", color: "#1e293b", margin: 0, fontWeight: 700 }}>Confirmar Pagamento</h2>
+                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>{confirmPaymentAppt.clientName}</span>
+                </div>
+              </div>
+              <button onClick={() => setConfirmPaymentAppt(null)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8", padding: "4px" }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ background: "#f8fafc", borderRadius: "12px", padding: "16px", marginBottom: "20px", border: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "4px" }}>Serviço: <strong style={{ color: "#1e293b" }}>{confirmPaymentAppt.service}</strong></div>
+              <div style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "8px" }}>Data & Horário: <strong style={{ color: "#1e293b" }}>{confirmPaymentAppt.date} às {confirmPaymentAppt.time}</strong></div>
+              <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--color-primary-dark, #a85145)" }}>R$ {confirmPaymentAppt.price},00</div>
+            </div>
+
+            <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#334155", marginBottom: "12px" }}>Selecione a forma de pagamento:</p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "24px" }}>
+              <button
+                onClick={() => {
+                  updatePayment(confirmPaymentAppt.id, "paid_pix");
+                  setSelectedDetailAppt(prev => prev && prev.id === confirmPaymentAppt.id ? { ...prev, paymentStatus: "paid_pix" } : prev);
+                  setConfirmPaymentAppt(null);
+                }}
+                style={{
+                  padding: "14px 18px",
+                  borderRadius: "12px",
+                  border: confirmPaymentAppt.paymentStatus === 'paid_pix' ? "2px solid #16a34a" : "1px solid #e2e8f0",
+                  background: confirmPaymentAppt.paymentStatus === 'paid_pix' ? "#f0fdf4" : "white",
+                  color: "#1e293b",
+                  fontWeight: 600,
+                  fontSize: "0.95rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  transition: "all 0.2s"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <QrCode size={20} color="#16a34a" />
+                  <span>Pago no Pix</span>
+                </div>
+                {confirmPaymentAppt.paymentStatus === 'paid_pix' && <CheckCircle2 size={18} color="#16a34a" />}
+              </button>
+
+              <button
+                onClick={() => {
+                  updatePayment(confirmPaymentAppt.id, "paid_credit");
+                  setSelectedDetailAppt(prev => prev && prev.id === confirmPaymentAppt.id ? { ...prev, paymentStatus: "paid_credit" } : prev);
+                  setConfirmPaymentAppt(null);
+                }}
+                style={{
+                  padding: "14px 18px",
+                  borderRadius: "12px",
+                  border: confirmPaymentAppt.paymentStatus === 'paid_credit' ? "2px solid #2563eb" : "1px solid #e2e8f0",
+                  background: confirmPaymentAppt.paymentStatus === 'paid_credit' ? "#eff6ff" : "white",
+                  color: "#1e293b",
+                  fontWeight: 600,
+                  fontSize: "0.95rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  transition: "all 0.2s"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <CreditCard size={20} color="#2563eb" />
+                  <span>Pago no Cartão de Crédito</span>
+                </div>
+                {confirmPaymentAppt.paymentStatus === 'paid_credit' && <CheckCircle2 size={18} color="#2563eb" />}
+              </button>
+
+              <button
+                onClick={() => {
+                  updatePayment(confirmPaymentAppt.id, "paid_debit");
+                  setSelectedDetailAppt(prev => prev && prev.id === confirmPaymentAppt.id ? { ...prev, paymentStatus: "paid_debit" } : prev);
+                  setConfirmPaymentAppt(null);
+                }}
+                style={{
+                  padding: "14px 18px",
+                  borderRadius: "12px",
+                  border: confirmPaymentAppt.paymentStatus === 'paid_debit' ? "2px solid #0891b2" : "1px solid #e2e8f0",
+                  background: confirmPaymentAppt.paymentStatus === 'paid_debit' ? "#ecfeff" : "white",
+                  color: "#1e293b",
+                  fontWeight: 600,
+                  fontSize: "0.95rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  transition: "all 0.2s"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <CreditCard size={20} color="#0891b2" />
+                  <span>Pago no Cartão de Débito</span>
+                </div>
+                {confirmPaymentAppt.paymentStatus === 'paid_debit' && <CheckCircle2 size={18} color="#0891b2" />}
+              </button>
+
+              {confirmPaymentAppt.paymentStatus.includes('paid') && (
+                <button
+                  onClick={() => {
+                    updatePayment(confirmPaymentAppt.id, "open");
+                    setSelectedDetailAppt(prev => prev && prev.id === confirmPaymentAppt.id ? { ...prev, paymentStatus: "open" } : prev);
+                    setConfirmPaymentAppt(null);
+                  }}
+                  style={{
+                    padding: "12px 18px",
+                    borderRadius: "12px",
+                    border: "1px solid #fecaca",
+                    background: "#fef2f2",
+                    color: "#dc2626",
+                    fontWeight: 600,
+                    fontSize: "0.9rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    marginTop: "4px"
+                  }}
+                >
+                  <XCircle size={16} /> Marcar como Pendente (Não Pago)
+                </button>
+              )}
+            </div>
+
+            <div style={{ textAlign: "right" }}>
+              <button 
+                onClick={() => setConfirmPaymentAppt(null)}
+                style={{ padding: "10px 20px", borderRadius: "10px", border: "1px solid #e2e8f0", background: "white", color: "#64748b", fontWeight: 600, cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showBlockModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, backdropFilter: "blur(4px)" }}>
+
           <div className={styles.modal} style={{ background: "white", padding: "32px", borderRadius: "16px", width: "400px", maxWidth: "90%", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }}>
             <h2 style={{ fontSize: "1.25rem", color: "#1e293b", marginBottom: "8px", fontWeight: 700 }}>Bloquear Horários</h2>
             <p style={{ color: "#64748b", fontSize: "0.9rem", marginBottom: "24px" }}>Selecione o intervalo de horário que deseja bloquear para o dia {selectedDateStr}. Nenhum agendamento poderá ser marcado neste período.</p>
@@ -2596,8 +3088,16 @@ export default function AdminDashboard() {
                 onClick={() => {
                   const startMins = timeToMins(blockStart);
                   const endMins = timeToMins(blockEnd);
+                  if (startMins >= endMins) {
+                    alert("O horário final deve ser maior que o horário inicial.");
+                    return;
+                  }
+                  const slotsToBlock: string[] = [];
                   for (let m = startMins; m < endMins; m += 30) {
-                    toggleTimeSlot(selectedDateStr, minsToTime(m));
+                    slotsToBlock.push(minsToTime(m));
+                  }
+                  if (slotsToBlock.length > 0) {
+                    blockTimeSlots(selectedDateStr, slotsToBlock);
                   }
                   setShowBlockModal(false);
                 }}
@@ -2615,6 +3115,16 @@ export default function AdminDashboard() {
         onClose={() => setShowEditProfileModal(false)}
         user={user}
         onSave={handleSaveProfile}
+        onInactivate={() => {
+          inactivateProfile();
+          setShowEditProfileModal(false);
+          alert(`Perfil ${user?.status === 'inactive' ? 'reativado' : 'inativado'} com sucesso!`);
+        }}
+        onDelete={() => {
+          deleteProfile();
+          setShowEditProfileModal(false);
+          alert("Seu perfil foi excluído com sucesso.");
+        }}
       />
 
       {showLoyaltySettings && (
@@ -2761,7 +3271,242 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {selectedDetailAppt && (
+        <div className={styles.detailModalOverlay} onClick={() => setSelectedDetailAppt(null)}>
+          <div className={styles.detailModalCard} onClick={(e) => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div className={styles.detailModalHeader}>
+              <div className={styles.detailModalTag}>
+                <Sparkles size={14} /> Detalhes do Agendamento
+              </div>
+              <button 
+                className={styles.detailModalCloseBtn}
+                onClick={() => setSelectedDetailAppt(null)}
+                title="Fechar modal"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Client Profile & Hero Section */}
+            {(() => {
+              const clientObj = clients.find(c => c.email === selectedDetailAppt.clientEmail || c.name.toLowerCase() === selectedDetailAppt.clientName.toLowerCase());
+              const isClientDeleted = !clientObj;
+              const clientPhoto = clientObj?.photoUrl || (clientObj as any)?.photo;
+              const clientPhone = clientObj?.phone || "";
+
+              return (
+                <div className={styles.detailModalBody}>
+                  <div className={styles.detailClientHero}>
+                    <div className={styles.detailAvatarWrapper}>
+                      {clientPhoto ? (
+                        <img src={clientPhoto} alt={selectedDetailAppt.clientName} className={styles.detailAvatarImg} />
+                      ) : (
+                        <div className={styles.detailAvatarInitials}>
+                          {getInitials(selectedDetailAppt.clientName)}
+                        </div>
+                      )}
+                      {isClientDeleted && (
+                        <span className={styles.deletedClientBadge}>Excluído</span>
+                      )}
+                    </div>
+                    <div className={styles.detailClientInfo}>
+                      <h3 className={styles.detailClientName}>{selectedDetailAppt.clientName}</h3>
+                      <div className={styles.detailClientSubRow}>
+                        {selectedDetailAppt.clientEmail && (
+                          <span className={styles.detailClientEmail}>
+                            <Mail size={14} /> {selectedDetailAppt.clientEmail}
+                          </span>
+                        )}
+                        {clientPhone && (
+                          <a 
+                            href={`https://wa.me/55${clientPhone.replace(/\D/g, '')}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className={styles.detailWhatsappBtn}
+                            title="Conversar no WhatsApp"
+                          >
+                            <MessageCircle size={14} /> {clientPhone}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Time, Date & Financial Section */}
+                  <div className={styles.detailMetaGrid}>
+                    <div className={styles.detailMetaCard}>
+                      <div className={styles.detailMetaIcon} style={{ background: '#EEF2FF', color: '#4F46E5' }}>
+                        <CalendarDays size={20} />
+                      </div>
+                      <div>
+                        <span className={styles.detailMetaLabel}>Data e Horário</span>
+                        <div className={styles.detailMetaValue}>
+                          {selectedDetailAppt.date}
+                        </div>
+                        <div className={styles.detailMetaSub}>
+                          <Clock size={12} /> {selectedDetailAppt.time} às {selectedDetailAppt.endTime || "N/A"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.detailMetaCard}>
+                      <div className={styles.detailMetaIcon} style={{ background: '#ECFDF5', color: '#059669' }}>
+                        <DollarSign size={20} />
+                      </div>
+                      <div>
+                        <span className={styles.detailMetaLabel}>Valor Total</span>
+                        <div className={styles.detailMetaValueAmount}>
+                          R$ {selectedDetailAppt.price},00
+                        </div>
+                        <div className={styles.detailMetaSub}>
+                          {selectedDetailAppt.paymentStatus.includes('paid') ? '✓ Confirmado' : '⚡ Aguardando recebimento'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Services List Section */}
+                  <div className={styles.detailServicesBox}>
+                    <div className={styles.detailSectionTitle}>
+                      <Sparkles size={16} color="var(--color-accent, #d4a373)" /> Serviços Agendados
+                    </div>
+                    <div className={styles.detailServicesTags}>
+                      {selectedDetailAppt.service.split(',').map((srv, idx) => (
+                        <div key={idx} className={styles.detailServiceItem}>
+                          <CheckCircle2 size={15} className={styles.detailCheckIcon} />
+                          <span>{srv.trim()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Status & Payment Badges */}
+                  <div className={styles.detailBadgesRow}>
+                    <div className={styles.detailBadgeGroup}>
+                      <span className={styles.detailBadgeGroupTitle}>Status do Agendamento:</span>
+                      {selectedDetailAppt.status === 'confirmed' && <span className={`${styles.badge} ${styles.badgeGreen}`} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>✓ Confirmado</span>}
+                      {selectedDetailAppt.status === 'pending' && <span className={`${styles.badge} ${styles.badgeYellow}`} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>⏳ Pendente</span>}
+                      {selectedDetailAppt.status === 'completed' && <span className={`${styles.badge} ${styles.badgeGray}`} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>🏁 Concluído</span>}
+                      {selectedDetailAppt.status === 'canceled' && <span className={`${styles.badge} ${styles.badgeRed}`} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>✕ Cancelado</span>}
+                    </div>
+
+                    <div className={styles.detailBadgeGroup}>
+                      <span className={styles.detailBadgeGroupTitle}>Situação do Pagamento:</span>
+                      {selectedDetailAppt.paymentStatus.includes('paid') ? (
+                        <span className={`${styles.badge} ${styles.badgeGreen}`} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
+                          💳 Pago via {selectedDetailAppt.paymentStatus.replace('paid_', '')}
+                        </span>
+                      ) : (
+                        <span className={`${styles.badge} ${styles.badgeYellow}`} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
+                          ⏳ Pagamento pendente
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons Grid */}
+                  <div className={styles.detailActionsContainer}>
+                    <div className={styles.detailSectionTitle}>Ações Rápidas</div>
+                    <div className={styles.detailActionsGrid}>
+                      {/* Confirmar Agendamento */}
+                      <button
+                        className={`${styles.detailActionBtn} ${selectedDetailAppt.status === 'confirmed' ? styles.btnPendingAction : styles.btnConfirm}`}
+                        onClick={() => {
+                          const newStatus = selectedDetailAppt.status === 'confirmed' ? 'pending' : 'confirmed';
+                          updateStatus(selectedDetailAppt.id, newStatus);
+                          setSelectedDetailAppt(prev => prev ? { ...prev, status: newStatus } : null);
+                        }}
+                        title={selectedDetailAppt.status === 'confirmed' ? 'Marcar como pendente' : 'Confirmar presença do cliente'}
+                      >
+                        <CheckCircle2 size={16} />
+                        <span>{selectedDetailAppt.status === 'confirmed' ? 'Pendente' : 'Confirmar'}</span>
+                      </button>
+
+
+                      {/* Confirmar / Gerenciar Pagamento */}
+                      <button
+                        className={`${styles.detailActionBtn} ${selectedDetailAppt.paymentStatus.includes('paid') ? styles.btnPaid : styles.btnPay}`}
+                        onClick={() => {
+                          setConfirmPaymentAppt(selectedDetailAppt);
+                        }}
+                        title="Registrar ou alterar status do pagamento"
+                      >
+                        <CreditCard size={16} />
+                        <span>{selectedDetailAppt.paymentStatus.includes('paid') ? 'Alterar Pago' : 'Pagamento'}</span>
+                      </button>
+
+                      {/* Enviar Lembrete WhatsApp */}
+                      <button
+                        className={`${styles.detailActionBtn} ${styles.btnReminder}`}
+                        onClick={() => {
+                          handleSendReminderForAppt(selectedDetailAppt);
+                        }}
+                        title="Enviar mensagem de lembrete no WhatsApp"
+                      >
+                        <Bell size={16} />
+                        <span>Lembrete</span>
+                      </button>
+
+                      {/* Editar Agendamento */}
+                      <button
+                        className={`${styles.detailActionBtn} ${styles.btnEdit}`}
+                        onClick={() => {
+                          handleOpenEditAppt(selectedDetailAppt);
+                          setSelectedDetailAppt(null);
+                        }}
+                        title="Editar data, horário ou serviços"
+                      >
+                        <Edit3 size={16} />
+                        <span>Editar</span>
+                      </button>
+
+                      {/* Cancelar Agendamento */}
+                      <button
+                        className={`${styles.detailActionBtn} ${styles.btnCancel}`}
+                        onClick={() => {
+                          if (selectedDetailAppt.status === 'canceled') {
+                            updateStatus(selectedDetailAppt.id, 'pending');
+                            setSelectedDetailAppt(prev => prev ? { ...prev, status: 'pending' } : null);
+                          } else if (confirm(`Deseja realmente cancelar o agendamento de ${selectedDetailAppt.clientName}?`)) {
+                            updateStatus(selectedDetailAppt.id, 'canceled');
+                            handleSendCancellationForAppt(selectedDetailAppt);
+                            setSelectedDetailAppt(prev => prev ? { ...prev, status: 'canceled' } : null);
+                          }
+                        }}
+                        title="Cancelar agendamento e avisar no WhatsApp"
+                      >
+                        <XCircle size={16} />
+                        <span>{selectedDetailAppt.status === 'canceled' ? 'Reativar' : 'Cancelar'}</span>
+                      </button>
+
+                      {/* Excluir Agendamento */}
+                      <button
+                        className={`${styles.detailActionBtn} ${styles.btnDelete}`}
+                        onClick={() => {
+                          if (confirm(`Deseja excluir definitivamente o agendamento de ${selectedDetailAppt.clientName}?`)) {
+                            deleteAppointment(selectedDetailAppt.id);
+                            setSelectedDetailAppt(null);
+                          }
+                        }}
+                        title="Excluir este agendamento do banco de dados"
+                      >
+                        <Trash2 size={16} />
+                        <span>Excluir</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+
+            })()}
+          </div>
+        </div>
+      )}
       </main>
+
     </div>
   );
 }

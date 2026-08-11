@@ -266,8 +266,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 36px;
-  gap: 16px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+  gap: 12px;
   width: 100%;
 }
 
@@ -275,38 +277,35 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
 }
 
-.backSpacer {
-  display: block;
-}
-
 .btnBack {
-  background: var(--color-surface);
-  color: var(--color-text-main);
-  padding: 14px 24px;
-  border-radius: var(--radius-full);
-  font-weight: 600;
-  font-size: 1rem;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  border: 1.5px solid var(--color-border);
+  flex: 1;
+  background: #ffffff;
+  color: #334155;
+  padding: 13px 20px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid #cbd5e1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
   white-space: nowrap;
 }
 
 .btnBack:hover {
-  background: var(--color-primary-light);
-  border-color: var(--color-primary);
-  color: var(--color-primary-dark);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .btnBack:active {
@@ -315,35 +314,55 @@
 
 .btnNext,
 .btnSubmit {
-  flex: 1;
+  flex: 2;
+  padding: 13px 20px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .cancelWrapper {
   display: flex;
   justify-content: center;
   width: 100%;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .btnCancel {
-  background: transparent;
-  color: var(--color-text-muted);
-  padding: 8px 18px;
-  border-radius: var(--radius-full);
-  font-weight: 500;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-  border: 1px transparent;
+  width: 100%;
+  background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+  color: #e11d48;
+  padding: 11px 20px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid #fecdd3;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.08);
 }
 
 .btnCancel:hover {
-  background: #FEF2F2;
-  color: var(--color-error);
+  background: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%);
+  color: #be123c;
+  border-color: #fda4af;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.18);
 }
+
+.btnCancel:active {
+  transform: translateY(0);
+}
+
+
 
 .summary {
   background: var(--color-background);
@@ -412,8 +431,10 @@
   }
 
   .btnCancel {
-    padding: 6px 14px;
-    font-size: 0.85rem;
+    padding: 10px 20px;
+    font-size: 0.88rem;
+    width: 100%;
   }
+
 }
 

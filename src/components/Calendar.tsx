@@ -12,9 +12,11 @@ interface CalendarProps {
   disabledDaysOfWeek?: number[]; // 0 = Sunday, 1 = Monday...
   closedDates?: Date[]; // specific dates the salon is closed
   adminMode?: boolean; // if true, allows selecting disabled/closed dates
+  appointments?: Array<{ date: string; status?: string }>;
+  appointmentCounts?: Record<string, number>;
 }
 
-export default function Calendar({ selectedDate, onSelectDate, disabledDaysOfWeek = [], closedDates = [], adminMode = false }: CalendarProps) {
+export default function Calendar({ selectedDate, onSelectDate, disabledDaysOfWeek = [], closedDates = [], adminMode = false, appointments = [], appointmentCounts }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
@@ -34,6 +36,17 @@ export default function Calendar({ selectedDate, onSelectDate, disabledDaysOfWee
 
   const isClosedDate = (date: Date) => {
     return closedDates.some(closedDate => isSameDay(date, closedDate));
+  };
+
+  const getApptCount = (day: Date) => {
+    const formatted = format(day, "dd/MM/yyyy");
+    if (appointmentCounts && appointmentCounts[formatted] !== undefined) {
+      return appointmentCounts[formatted];
+    }
+    if (appointments && appointments.length > 0) {
+      return appointments.filter(a => a.date === formatted && a.status !== 'canceled').length;
+    }
+    return 0;
   };
 
   return (
@@ -74,6 +87,7 @@ export default function Calendar({ selectedDate, onSelectDate, disabledDaysOfWee
           
           const selected = selectedDate && isSameDay(day, selectedDate);
           const today = isToday(day);
+          const apptCount = isCurrentMonth ? getApptCount(day) : 0;
 
           return (
             <button
@@ -90,7 +104,13 @@ export default function Calendar({ selectedDate, onSelectDate, disabledDaysOfWee
                 ${isClosed && isCurrentMonth ? styles.closed : ""}
               `}
             >
-              {format(day, "d")}
+              <span>{format(day, "d")}</span>
+              {adminMode && apptCount > 0 && (
+                <span className={styles.apptBadge} title={`${apptCount} ${apptCount === 1 ? 'agendamento' : 'agendamentos'}`}>
+                  {apptCount}
+                </span>
+              )}
+
             </button>
           );
         })}

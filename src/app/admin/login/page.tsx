@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { Sparkles } from "lucide-react";
+import { AlertCircle, Sparkles } from "lucide-react";
 import styles from "../../agendar/page.module.css"; // Reuse form styles
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   const { login, user } = useAuth();
   const router = useRouter();
 
@@ -18,9 +19,14 @@ export default function AdminLogin() {
     return null;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login(email, password);
+    setErrorMsg("");
+    const loggedUser = await login(email, password);
+    if (!loggedUser || loggedUser.role !== "admin") {
+      setErrorMsg("E-mail ou senha incorretos para o painel administrativo.");
+      return;
+    }
     router.push("/admin");
   };
 
@@ -32,7 +38,14 @@ export default function AdminLogin() {
         </div>
         <h1 style={{ textAlign: "center", marginBottom: "32px", fontSize: "1.5rem" }}>Acesso Restrito</h1>
         
+        {errorMsg && (
+          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", padding: "10px 14px", borderRadius: "10px", marginBottom: "20px", fontSize: "0.85rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
+            <AlertCircle size={18} /> {errorMsg}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
+
           <div className={styles.formGroup}>
             <label>E-mail</label>
             <input 

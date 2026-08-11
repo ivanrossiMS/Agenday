@@ -6,11 +6,13 @@ import { usePathname } from "next/navigation";
 import { User, CalendarDays, LogOut, ChevronDown, LayoutDashboard, UserCircle, Menu, X, Layers } from "lucide-react";
 import styles from "./Header.module.css";
 import { useAuth } from "@/context/AuthContext";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 import EditProfileModal from "./EditProfileModal";
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
-  const { user, logout, updateProfile } = useAuth();
+  const { user, logout, updateProfile, inactivateProfile, deleteProfile } = useAuth();
+  const { settings } = useSiteSettings();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -50,21 +52,26 @@ export default function Header() {
     <header className={`${styles.header} ${scrolled ? styles.scrolled : ""}`}>
       {/* Left: Logo */}
       <Link href="/" className={styles.logo}>
-        <div className={styles.logoCircle}>FM</div>
-        <span className={styles.logoText}>
-          Fran <span className={styles.logoTextHighlight}>Marinho</span>
-        </span>
+        {settings?.logoUrl ? (
+          <img src={settings.logoUrl} alt="Logo" style={{ height: "42px", maxHeight: "100%", objectFit: "contain" }} />
+        ) : (
+          <>
+            <div className={styles.logoCircle}>FM</div>
+            <span className={styles.logoText}>
+              Fran <span className={styles.logoTextHighlight}>Marinho</span>
+            </span>
+          </>
+        )}
       </Link>
+
       
       {/* Center: Navigation Links */}
       <nav className={styles.navCenter}>
         <Link href="/servicos" className={`${styles.navLink} ${pathname === '/servicos' ? styles.active : ''}`}>
           Serviços
         </Link>
-        <Link href="/dashboard" className={`${styles.navLink} ${pathname === '/dashboard' ? styles.active : ''}`}>
-          Agendamentos
-        </Link>
       </nav>
+
 
       {/* Right: Actions and User */}
       <div className={styles.navRight}>
@@ -154,11 +161,18 @@ export default function Header() {
           <div className={styles.mobileDrawerContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.mobileDrawerHeader}>
               <div className={styles.logo}>
-                <div className={styles.logoCircle}>FM</div>
-                <span className={styles.logoText}>
-                  Fran <span className={styles.logoTextHighlight}>Marinho</span>
-                </span>
+                {settings?.logoUrl ? (
+                  <img src={settings.logoUrl} alt="Logo" style={{ height: "36px", objectFit: "contain" }} />
+                ) : (
+                  <>
+                    <div className={styles.logoCircle}>FM</div>
+                    <span className={styles.logoText}>
+                      Fran <span className={styles.logoTextHighlight}>Marinho</span>
+                    </span>
+                  </>
+                )}
               </div>
+
               <button className={styles.closeDrawerBtn} onClick={() => setMobileMenuOpen(false)}>
                 <X size={20} />
               </button>
@@ -245,7 +259,18 @@ export default function Header() {
         onSave={(data) => {
           updateProfile(data);
         }}
+        onInactivate={user?.role === "admin" ? () => {
+          inactivateProfile();
+          setShowEditProfileModal(false);
+          alert(`Perfil ${user?.status === 'inactive' ? 'reativado' : 'inativado'} com sucesso!`);
+        } : undefined}
+        onDelete={user?.role === "admin" ? () => {
+          deleteProfile();
+          setShowEditProfileModal(false);
+          alert("Seu perfil foi excluído com sucesso.");
+        } : undefined}
       />
+
     </header>
   );
 }

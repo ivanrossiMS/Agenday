@@ -1,12 +1,18 @@
 "use client";
 
 import { useSiteSettings } from "@/context/SiteSettingsContext";
+import { usePathname } from "next/navigation";
 import styles from "./WhatsAppButton.module.css";
 
 export default function WhatsAppButton() {
   const { settings } = useSiteSettings();
+  const pathname = usePathname();
+
+  // Hide floating WhatsApp button on admin panel
+  if (pathname?.startsWith("/admin")) return null;
 
   if (!settings.whatsappNumber) return null;
+
 
   // Format the number to ensure it only has digits
   const formattedNumber = settings.whatsappNumber.replace(/\D/g, '');

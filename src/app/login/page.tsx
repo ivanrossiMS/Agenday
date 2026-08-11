@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Mail, Lock, User as UserIcon, CalendarDays, MessageSquare } from "lucide-react";
+import { ArrowLeft, Mail, Lock, User as UserIcon, CalendarDays, MessageSquare, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import styles from "./page.module.css";
 
@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [phone, setPhone] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   
   const { login, register } = useAuth();
   const router = useRouter();
@@ -29,12 +30,17 @@ export default function LoginPage() {
     return val;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg("");
     let loggedUser;
     
     if (isLogin) {
-      loggedUser = login(email, password);
+      loggedUser = await login(email, password);
+      if (!loggedUser) {
+        setErrorMsg("Usuário não encontrado. Por favor, faça seu cadastro no botão 'Cadastre-se aqui' abaixo.");
+        return;
+      }
     } else {
       loggedUser = register(name, email, password, birthDate, phone);
     }
@@ -45,6 +51,7 @@ export default function LoginPage() {
       router.push("/dashboard");
     }
   };
+
 
   return (
     <div className={styles.container}>
@@ -78,7 +85,15 @@ export default function LoginPage() {
               : "Cadastre-se para acessar nossos serviços premium e programa de fidelidade."}
           </p>
 
+          {errorMsg && (
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", padding: "12px 16px", borderRadius: "12px", marginBottom: "20px", fontSize: "0.88rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "10px" }}>
+              <AlertCircle size={20} style={{ flexShrink: 0 }} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit}>
+
             {!isLogin && (
               <div className={styles.formGroup}>
                 <label>Nome Completo</label>
@@ -166,9 +181,10 @@ export default function LoginPage() {
 
           <div className={styles.toggleAuth}>
             {isLogin ? "Ainda não tem conta?" : "Já é nossa cliente?"}{" "}
-            <button onClick={() => setIsLogin(!isLogin)} type="button">
+            <button onClick={() => { setIsLogin(!isLogin); setErrorMsg(""); }} type="button">
               {isLogin ? "Cadastre-se aqui" : "Faça login"}
             </button>
+
           </div>
         </div>
       </div>

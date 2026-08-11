@@ -2,7 +2,7 @@
 
 import { useState, Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Check, ArrowRight, ArrowLeft, CreditCard, QrCode, Store, X } from "lucide-react";
+import { Check, ArrowRight, ArrowLeft, CreditCard, QrCode, Store, X, AlertCircle, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import styles from "./page.module.css";
@@ -42,6 +42,17 @@ function AgendarFlow() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"credit" | "pix" | "local" | null>(null);
+  const [authError, setAuthError] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [confirmedApptData, setConfirmedApptData] = useState<{
+    service: string;
+    date: string;
+    time: string;
+    price: number;
+    paymentStatus: string;
+  } | null>(null);
+
+
 
   // Pre-select services when parameter is provided (e.g. servicos=all or servicos=cilios or servicos=name)
   useEffect(() => {
@@ -74,6 +85,7 @@ function AgendarFlow() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [birthDate, setBirthDate] = useState("");
 
   const formatPhone = (val: string) => {
     const digits = val.replace(/\D/g, "");
@@ -100,23 +112,40 @@ function AgendarFlow() {
     });
   };
 
-  const handleAuthSubmit = (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError("");
     if (isLogin) {
-      login(email, password);
+      const loggedUser = await login(email, password);
+      if (!loggedUser) {
+        setAuthError("Usuário não encontrado. Alterne para a aba de Cadastro para criar sua conta.");
+        return;
+      }
     } else {
-      register(name, email, password, undefined, phone);
+      register(name, email, password, birthDate, phone);
     }
     handleNext();
   };
+
+
 
   const getSelectedObjects = () => services.filter(s => selectedServices.includes(s.id));
   const totalPrice = getSelectedObjects().reduce((acc, curr) => acc + curr.price, 0);
   const totalDuration = getSelectedObjects().reduce((acc, curr) => acc + curr.duration, 0);
 
+  const clientWorkDays = settings.workDays || [1, 2, 3, 4, 5, 6];
+  const disabledDaysOfWeek = [0, 1, 2, 3, 4, 5, 6].filter(d => !clientWorkDays.includes(d));
+
+
   const generateAvailableTimes = (date: Date) => {
+
+    if (!clientWorkDays.includes(date.getDay())) {
+      return [];
+    }
+
     const dateStr = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
     const dayAppts = appointments.filter(a => a.date === dateStr && a.status !== 'canceled');
+
     
     // Expediente baseado nas configurações do admin
     const startDay = timeToMins(settings.businessStart || "09:00");
@@ -135,7 +164,14 @@ function AgendarFlow() {
       }
       
       const timeSlotStr = minsToTime(slotStart);
-      const isSlotBlocked = blockedTimeSlots.includes(`${dateStr}-${timeSlotStr}`);
+      
+      let isSlotBlocked = false;
+      for (let checkM = slotStart; checkM < slotEnd; checkM += 30) {
+        if (blockedTimeSlots.includes(`${dateStr}-${minsToTime(checkM)}`)) {
+          isSlotBlocked = true;
+          break;
+        }
+      }
       
       let isPast = false;
       const now = new Date();
@@ -178,9 +214,16 @@ function AgendarFlow() {
       clientEmail: user.email,
     });
     
-    alert("Agendamento confirmado com sucesso!");
-    router.push("/dashboard");
+    setConfirmedApptData({
+      service: servicesStr,
+      date: selectedDateStr,
+      time: selectedTime,
+      price: totalPrice,
+      paymentStatus
+    });
+    setShowSuccessModal(true);
   };
+
 
   // If user is already logged in and at step 3, skip to step 4 automatically
   useEffect(() => {
@@ -265,11 +308,12 @@ function AgendarFlow() {
               <Calendar 
                 selectedDate={selectedDate} 
                 onSelectDate={setSelectedDate} 
-                disabledDaysOfWeek={[0, 1]} // Domingos e Segundas fechados
+                disabledDaysOfWeek={disabledDaysOfWeek}
                 closedDates={closedDates.map(dStr => {
                   const [dd, mm, yyyy] = dStr.split('/');
                   return new Date(Number(yyyy), Number(mm)-1, Number(dd));
                 })}
+                appointments={appointments}
               />
               
               <div style={{ flex: "1", minWidth: "250px" }}>
@@ -304,6 +348,13 @@ function AgendarFlow() {
               Para finalizar o agendamento, precisamos que você se identifique.
             </p>
             
+            {authError && (
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", padding: "12px 16px", borderRadius: "12px", marginBottom: "20px", fontSize: "0.88rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "10px" }}>
+                <AlertCircle size={20} style={{ flexShrink: 0 }} />
+                <span>{authError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleAuthSubmit}>
               {!isLogin && (
                 <div className={styles.formGroup}>
@@ -317,6 +368,13 @@ function AgendarFlow() {
                   <input type="tel" placeholder="(11) 99999-9999" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} required />
                 </div>
               )}
+              {!isLogin && (
+                <div className={styles.formGroup}>
+                  <label>Data de Nascimento</label>
+                  <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} required />
+                </div>
+              )}
+
               <div className={styles.formGroup}>
                 <label>E-mail</label>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
@@ -333,10 +391,11 @@ function AgendarFlow() {
             <button 
               className="btn-secondary" 
               style={{ width: "100%", marginTop: "12px", border: "none" }}
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => { setIsLogin(!isLogin); setAuthError(""); }}
             >
               {isLogin ? "Não tem conta? Cadastre-se" : "Já tem conta? Faça login"}
             </button>
+
           </div>
         )}
 
@@ -411,7 +470,7 @@ function AgendarFlow() {
 
         <div className={styles.actions}>
           <div className={styles.navigationButtons}>
-            {step > 1 ? (
+            {step > 1 && (
               <button 
                 type="button" 
                 onClick={handlePrev} 
@@ -420,8 +479,6 @@ function AgendarFlow() {
               >
                 <ArrowLeft size={18} /> Voltar
               </button>
-            ) : (
-              <div className={styles.backSpacer} />
             )}
 
             {step < 4 ? (
@@ -459,8 +516,122 @@ function AgendarFlow() {
             </button>
           </div>
         </div>
+
+        {/* ULTRA MODERN SUCCESS MODAL */}
+        {showSuccessModal && (
+          <div style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 99999,
+            backgroundColor: "rgba(15, 23, 42, 0.75)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px"
+          }}>
+            <div style={{
+              background: "#ffffff",
+              width: "100%",
+              maxWidth: "460px",
+              borderRadius: "28px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.3)",
+              padding: "36px 30px 30px",
+              textAlign: "center",
+              position: "relative",
+              border: "1px solid rgba(255, 255, 255, 0.8)"
+            }}>
+              {/* Icon Badge */}
+              <div style={{
+                width: "80px",
+                height: "80px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 20px",
+                boxShadow: "0 12px 28px rgba(16, 185, 129, 0.4)"
+              }}>
+                <CheckCircle2 size={44} strokeWidth={2.5} />
+              </div>
+
+              <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", marginBottom: "8px", letterSpacing: "-0.02em" }}>
+                Agendamento Confirmado!
+              </h2>
+              <p style={{ color: "#64748b", fontSize: "0.92rem", marginBottom: "24px", lineHeight: 1.5 }}>
+                Sua reserva foi concluída com sucesso. Enviamos a confirmação para você!
+              </p>
+
+              {/* Summary Card */}
+              {confirmedApptData && (
+                <div style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "18px",
+                  padding: "20px",
+                  marginBottom: "24px",
+                  textAlign: "left",
+                  fontSize: "0.9rem"
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", paddingBottom: "12px", borderBottom: "1px dashed #cbd5e1" }}>
+                    <span style={{ color: "#64748b", fontWeight: 500 }}>Serviço(s)</span>
+                    <span style={{ color: "#0f172a", fontWeight: 700, textAlign: "right", maxWidth: "220px" }}>
+                      {confirmedApptData.service}
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+                    <span style={{ color: "#64748b", fontWeight: 500 }}>Data & Horário</span>
+                    <span style={{ color: "#0f172a", fontWeight: 700 }}>
+                      {confirmedApptData.date} às {confirmedApptData.time}
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+                    <span style={{ color: "#64748b", fontWeight: 500 }}>Pagamento</span>
+                    <span style={{ color: "#0f172a", fontWeight: 600 }}>
+                      {confirmedApptData.paymentStatus === 'paid_card' ? 'Cartão de Crédito' : confirmedApptData.paymentStatus === 'paid_pix' ? 'Pix Automático' : 'Pagar no Salão'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
+                    <span style={{ color: "#0f172a", fontWeight: 700 }}>Total</span>
+                    <span style={{ color: "var(--color-primary-dark, #b8574c)", fontWeight: 800, fontSize: "1.1rem" }}>
+                      R$ {confirmedApptData.price.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard")}
+                style={{
+                  width: "100%",
+                  background: "linear-gradient(135deg, #b8574c 0%, #8f3c33 100%)",
+                  color: "#ffffff",
+                  padding: "15px 24px",
+                  borderRadius: "14px",
+                  fontWeight: 700,
+                  fontSize: "1rem",
+                  border: "none",
+                  cursor: "pointer",
+                  boxShadow: "0 8px 22px rgba(184, 87, 76, 0.35)",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                Ver Meus Agendamentos
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
+
+
   );
 }
 

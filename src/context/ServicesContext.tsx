@@ -61,39 +61,52 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function loadServices() {
+      const stored = localStorage.getItem("@agenday:services");
+      let localData: ServiceItem[] = stored ? JSON.parse(stored) : INITIAL_SERVICES;
+
       try {
         const res = await fetch("/api/services");
         const json = await res.json();
-        if (json.configured && Array.isArray(json.data) && json.data.length > 0) {
-          const formatted: ServiceItem[] = json.data.map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            description: item.description || "",
-            price: Number(item.price) || 0,
-            duration: Number(item.duration) || 60,
-            imageUrl: item.image_url || "",
-            professionalName: item.professional_name || "",
-            professionalPhotoUrl: item.professional_photo_url || ""
-          }));
-          setServices(formatted);
-          localStorage.setItem("@agenday:services", JSON.stringify(formatted));
-          setIsLoaded(true);
-          return;
+        if (json.configured && Array.isArray(json.data)) {
+          if (json.data.length > 0) {
+            const formatted: ServiceItem[] = json.data.map((item: any) => ({
+              id: item.id,
+              name: item.name,
+              description: item.description || "",
+              price: Number(item.price) || 0,
+              duration: Number(item.duration) || 60,
+              imageUrl: item.image_url || "",
+              professionalName: item.professional_name || "",
+              professionalPhotoUrl: item.professional_photo_url || ""
+            }));
+            setServices(formatted);
+            localStorage.setItem("@agenday:services", JSON.stringify(formatted));
+            setIsLoaded(true);
+            return;
+          } else {
+            // DB is empty, seed DB with local data or defaults
+            setServices(localData);
+            localStorage.setItem("@agenday:services", JSON.stringify(localData));
+            for (const srv of localData) {
+              fetch("/api/services", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(srv)
+              }).catch(e => console.error("Error seeding service:", e));
+            }
+            setIsLoaded(true);
+            return;
+          }
         }
       } catch (e) {
         console.error("Erro ao carregar serviços da API:", e);
       }
 
-      // Fallback para localStorage
-      const stored = localStorage.getItem("@agenday:services");
-      if (stored) {
-        setServices(JSON.parse(stored));
-      } else {
-        setServices(INITIAL_SERVICES);
-        localStorage.setItem("@agenday:services", JSON.stringify(INITIAL_SERVICES));
-      }
+      setServices(localData);
+      localStorage.setItem("@agenday:services", JSON.stringify(localData));
       setIsLoaded(true);
     }
+
 
     loadServices();
   }, []);

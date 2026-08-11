@@ -10,6 +10,7 @@ export type ClientItem = {
   address?: string;
   birthDate?: string;
   photoUrl?: string;
+  status?: "active" | "inactive";
 };
 
 type ClientsContextType = {
@@ -27,40 +28,60 @@ export function ClientsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function loadClients() {
+      const saved = localStorage.getItem("@agenday:clients");
+      let localClients: ClientItem[] = [];
+      if (saved) {
+        try {
+          localClients = JSON.parse(saved).filter((c: ClientItem) => c.email !== "cliente@vip.com");
+        } catch (e) {
+          localClients = [];
+        }
+      }
+
       try {
         const res = await fetch("/api/clients");
         const json = await res.json();
         if (json.configured && Array.isArray(json.data)) {
-          const formatted: ClientItem[] = json.data.map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            email: item.email,
-            phone: item.phone || undefined,
-            address: item.address || undefined,
-            birthDate: item.birth_date || undefined,
-            photoUrl: item.photo_url || undefined,
-          })).filter((c: ClientItem) => c.email !== "cliente@vip.com");
+          if (json.data.length > 0) {
+            const formatted: ClientItem[] = json.data.map((item: any) => ({
+              id: item.id,
+              name: item.name,
+              email: item.email,
+              phone: item.phone || undefined,
+              address: item.address || undefined,
+              birthDate: item.birth_date || undefined,
+              photoUrl: item.photo_url || undefined,
+              status: item.status || "active",
+            })).filter((c: ClientItem) => c.email !== "cliente@vip.com");
 
-          setClients(formatted);
-          localStorage.setItem("@agenday:clients", JSON.stringify(formatted));
-          setIsLoaded(true);
-          return;
+            setClients(formatted);
+            localStorage.setItem("@agenday:clients", JSON.stringify(formatted));
+            setIsLoaded(true);
+            return;
+          } else if (localClients.length > 0) {
+            // DB is empty, seed DB with local clients
+            setClients(localClients);
+            localStorage.setItem("@agenday:clients", JSON.stringify(localClients));
+            for (const c of localClients) {
+              fetch("/api/clients", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(c)
+              }).catch(e => console.error("Error seeding client:", e));
+            }
+            setIsLoaded(true);
+            return;
+          }
         }
       } catch (e) {
         console.error("Erro ao carregar clientes da API:", e);
       }
 
-      const saved = localStorage.getItem("@agenday:clients");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved).filter((c: ClientItem) => c.email !== "cliente@vip.com");
-          setClients(parsed);
-        } catch (e) {
-          setClients([]);
-        }
-      }
+      setClients(localClients);
+      localStorage.setItem("@agenday:clients", JSON.stringify(localClients));
       setIsLoaded(true);
     }
+
 
     loadClients();
   }, []);

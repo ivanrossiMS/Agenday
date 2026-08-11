@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb, ensureTablesExist } from "@/lib/db";
 
 export async function GET() {
   const sql = getDb();
   if (!sql) return NextResponse.json({ configured: false, data: [] });
 
   try {
+    await ensureTablesExist(sql);
     const rows = await sql`SELECT date_str FROM closed_dates`;
     return NextResponse.json({ configured: true, data: rows.map((r: any) => r.date_str) });
   } catch (error: any) {
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
   if (!sql) return NextResponse.json({ configured: false });
 
   try {
+    await ensureTablesExist(sql);
     const body = await req.json();
     const { dateStr } = body;
     await sql`
@@ -35,6 +37,7 @@ export async function DELETE(req: Request) {
   if (!sql) return NextResponse.json({ configured: false });
 
   try {
+    await ensureTablesExist(sql);
     const { searchParams } = new URL(req.url);
     const dateStr = searchParams.get("dateStr");
     if (!dateStr) return NextResponse.json({ error: "Missing dateStr" }, { status: 400 });
@@ -45,3 +48,4 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

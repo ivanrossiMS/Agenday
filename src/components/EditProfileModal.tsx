@@ -2,8 +2,10 @@
 
 import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { User as UserIcon, Mail, Lock, Calendar, Camera, X, AlertCircle, Check, Eye, EyeOff, MessageSquare } from "lucide-react";
+
+import { User as UserIcon, Mail, Lock, Calendar, Camera, X, AlertCircle, Check, Eye, EyeOff, MessageSquare, Power, Trash2, ShieldAlert } from "lucide-react";
 import styles from "./EditProfileModal.module.css";
+import { compressImage } from "@/lib/imageUtils";
 
 type UserData = {
   name?: string;
@@ -12,7 +14,10 @@ type UserData = {
   birthDate?: string;
   photo?: string;
   password?: string;
+  status?: "active" | "inactive";
+  role?: "client" | "admin";
 };
+
 
 type EditProfileModalProps = {
   isOpen: boolean;
@@ -26,9 +31,11 @@ type EditProfileModalProps = {
     password?: string;
     photo?: string;
   }) => void;
+  onInactivate?: () => void;
+  onDelete?: () => void;
 };
 
-export default function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileModalProps) {
+export default function EditProfileModal({ isOpen, onClose, user, onSave, onInactivate, onDelete }: EditProfileModalProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -69,17 +76,13 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
 
   if (!isOpen || !user || !mounted) return null;
 
-  const handlePhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setPhoto(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(e.target.files[0]);
+      const compressed = await compressImage(e.target.files[0], 400, 400, 0.85);
+      setPhoto(compressed);
     }
   };
+
 
   const getInitials = (str: string) => {
     if (!str) return "U";
@@ -263,6 +266,80 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
               </div>
             </div>
           </div>
+
+          {/* Gerenciamento de Status e Exclusão do Perfil (Apenas Visão Admin) */}
+          {user?.role === "admin" && (onInactivate || onDelete) && (
+
+            <div style={{ marginTop: "12px", paddingTop: "16px", borderTop: "1px solid #f1f5f9" }}>
+              <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <ShieldAlert size={15} color="#e11d48" /> Gerenciamento do Perfil
+              </div>
+              
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                {onInactivate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Deseja realmente ${user?.status === 'inactive' ? 'reativar' : 'inativar'} seu perfil?`)) {
+                        onInactivate();
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      minWidth: "140px",
+                      padding: "10px 14px",
+                      borderRadius: "12px",
+                      border: "1px solid #cbd5e1",
+                      background: user?.status === 'inactive' ? '#f0fdf4' : '#f8fafc',
+                      color: user?.status === 'inactive' ? '#166534' : '#475569',
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <Power size={15} />
+                    {user?.status === 'inactive' ? 'Reativar Perfil' : 'Inativar Perfil'}
+                  </button>
+                )}
+
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm("Deseja realmente EXCLUIR permanentemente seu perfil? Esta ação apagará seus dados e não poderá ser desfeita.")) {
+                        onDelete();
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      minWidth: "140px",
+                      padding: "10px 14px",
+                      borderRadius: "12px",
+                      border: "1px solid #fecaca",
+                      background: "#fef2f2",
+                      color: "#dc2626",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <Trash2 size={15} />
+                    Excluir Perfil
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Footer Actions */}
           <div className={styles.actions}>

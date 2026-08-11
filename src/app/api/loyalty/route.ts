@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb, ensureTablesExist } from "@/lib/db";
 
 export async function GET() {
   const sql = getDb();
   if (!sql) return NextResponse.json({ configured: false, settings: null, claims: [] });
 
   try {
+    await ensureTablesExist(sql);
     const settings = await sql`SELECT * FROM loyalty_settings WHERE id = 'default' LIMIT 1`;
     const claims = await sql`SELECT * FROM loyalty_claims ORDER BY created_at DESC`;
     return NextResponse.json({
@@ -23,6 +24,7 @@ export async function POST(req: Request) {
   if (!sql) return NextResponse.json({ configured: false });
 
   try {
+    await ensureTablesExist(sql);
     const body = await req.json();
     const { action } = body;
 
@@ -30,7 +32,7 @@ export async function POST(req: Request) {
       const { stampsRequired, prizeName, expirationDays, isActive } = body.settings;
       await sql`
         INSERT INTO loyalty_settings (id, stamps_required, prize_name, expiration_days, is_active, updated_at)
-        VALUES ('default', ${stampsRequired}, ${prizeName}, ${expirationDays}, ${isActive}, NOW())
+        VALUES ('default', ${Number(stampsRequired) || 5}, ${prizeName || ''}, ${Number(expirationDays) || 90}, ${isActive !== false}, NOW())
         ON CONFLICT (id) DO UPDATE SET
           stamps_required = EXCLUDED.stamps_required,
           prize_name = EXCLUDED.prize_name,
@@ -56,3 +58,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

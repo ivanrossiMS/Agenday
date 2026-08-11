@@ -52,39 +52,71 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function loadLoyalty() {
+      const savedSettings = localStorage.getItem("@agenday_loyalty_settings");
+      const localSettings: LoyaltySettings = savedSettings ? JSON.parse(savedSettings) : defaultSettings;
+      const savedClaims = localStorage.getItem("@agenday_loyalty_claims");
+      const localClaims: LoyaltyClaim[] = savedClaims ? JSON.parse(savedClaims) : [];
+
       try {
         const res = await fetch("/api/loyalty");
         const json = await res.json();
         if (json.configured) {
           if (json.settings) {
-            setSettings({
+            const formattedSettings: LoyaltySettings = {
               stampsRequired: Number(json.settings.stamps_required) || 5,
               prizeName: json.settings.prize_name || "1 Hidratação Grátis",
               expirationDays: Number(json.settings.expiration_days) || 90,
               isActive: json.settings.is_active !== false
-            });
+            };
+            setSettings(formattedSettings);
+            localStorage.setItem("@agenday_loyalty_settings", JSON.stringify(formattedSettings));
+          } else {
+            setSettings(localSettings);
+            localStorage.setItem("@agenday_loyalty_settings", JSON.stringify(localSettings));
+            fetch("/api/loyalty", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "updateSettings", settings: localSettings })
+            }).catch(e => console.error("Error seeding loyalty settings:", e));
           }
+
           if (Array.isArray(json.claims)) {
-            setClaims(json.claims.map((item: any) => ({
-              id: Number(item.id),
-              clientEmail: item.client_email,
-              clientName: item.client_name,
-              prizeName: item.prize_name,
-              date: item.date
-            })));
+            if (json.claims.length > 0) {
+              const formattedClaims: LoyaltyClaim[] = json.claims.map((item: any) => ({
+                id: Number(item.id),
+                clientEmail: item.client_email,
+                clientName: item.client_name,
+                prizeName: item.prize_name,
+                date: item.date
+              }));
+              setClaims(formattedClaims);
+              localStorage.setItem("@agenday_loyalty_claims", JSON.stringify(formattedClaims));
+            } else if (localClaims.length > 0) {
+              setClaims(localClaims);
+              localStorage.setItem("@agenday_loyalty_claims", JSON.stringify(localClaims));
+              for (const c of localClaims) {
+                fetch("/api/loyalty", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action: "claimPrize", claim: c })
+                }).catch(e => console.error("Error seeding claim:", e));
+              }
+            }
           }
-        } else {
-          const savedSettings = localStorage.getItem("@agenday_loyalty_settings");
-          if (savedSettings) setSettings(JSON.parse(savedSettings));
-          const savedClaims = localStorage.getItem("@agenday_loyalty_claims");
-          if (savedClaims) setClaims(JSON.parse(savedClaims));
+          setIsLoaded(true);
+          return;
         }
       } catch (e) {
         console.error("Erro ao carregar fidelidade da API:", e);
       }
 
+      setSettings(localSettings);
+      setClaims(localClaims);
+      localStorage.setItem("@agenday_loyalty_settings", JSON.stringify(localSettings));
+      localStorage.setItem("@agenday_loyalty_claims", JSON.stringify(localClaims));
       setIsLoaded(true);
     }
+
 
     loadLoyalty();
   }, []);

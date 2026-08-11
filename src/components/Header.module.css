@@ -309,9 +309,15 @@
 }
 
 .mobileNavItemActive {
-  background: var(--color-primary-light);
-  color: var(--color-primary-dark);
-  font-weight: 600;
+  background: linear-gradient(135deg, var(--color-primary-dark, #a85145) 0%, var(--color-primary, #c16355) 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 12px rgba(168, 81, 69, 0.3) !important;
+}
+
+.mobileNavItemActive svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
 }
 
 .mobileDrawerFooter {
