@@ -53,8 +53,21 @@ CREATE TABLE IF NOT EXISTS public.clients (
   address TEXT DEFAULT '',
   birth_date TEXT DEFAULT '',
   photo_url TEXT DEFAULT '',
+  password TEXT DEFAULT '',
+  status TEXT DEFAULT 'active',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 6. TABELA DE REDEFINIÇÃO DE SENHA
+CREATE TABLE IF NOT EXISTS public.password_resets (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 
 -- 6. TABELA DE CONFIGURAÇÕES DO PROGRAMA DE FIDELIDADE
 CREATE TABLE IF NOT EXISTS public.loyalty_settings (

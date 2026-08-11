@@ -126,8 +126,22 @@ export async function ensureTablesExist(sql: any) {
     await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS login_quote_author TEXT;`;
     await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS testimonials JSONB;`;
 
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS password TEXT DEFAULT '';`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS password_resets (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        token_hash TEXT NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+
     tablesInitialized = true;
   } catch (err) {
     console.error("Error initializing database tables:", err);
   }
 }
+

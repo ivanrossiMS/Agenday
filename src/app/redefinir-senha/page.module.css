@@ -6,7 +6,6 @@
   overflow: hidden;
 }
 
-/* Ambient Glowing Background Blobs for Mobile & Desktop */
 .bgBlob1 {
   position: absolute;
   top: -120px;
@@ -33,78 +32,16 @@
   z-index: 0;
 }
 
-.imageSection {
-  flex: 1.2;
-  display: none;
-  position: relative;
-  overflow: hidden;
-}
-
-@media (min-width: 900px) {
-  .imageSection {
-    display: block;
-  }
-}
-
-.image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.imageOverlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, rgba(184, 87, 76, 0.35) 0%, rgba(15, 23, 42, 0.6) 100%);
-  z-index: 1;
-}
-
-.quoteWrapper {
-  position: absolute;
-  bottom: 80px;
-  left: 60px;
-  right: 80px;
-  z-index: 2;
-  color: #ffffff;
-  text-shadow: 0 4px 16px rgba(0,0,0,0.4);
-}
-
-.quote {
-  font-size: 2.2rem;
-  font-family: var(--font-heading, Georgia, serif);
-  font-weight: 500;
-  line-height: 1.35;
-  margin-bottom: 16px;
-  letter-spacing: -0.01em;
-}
-
-.quoteAuthor {
-  font-size: 1.15rem;
-  opacity: 0.95;
-  font-weight: 600;
-  color: #fce7f3;
-}
-
 .formSection {
   flex: 1;
-  max-width: 580px;
+  width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 24px 20px;
+  padding: 40px 20px;
   position: relative;
   z-index: 10;
-  width: 100%;
-}
-
-@media (min-width: 900px) {
-  .formSection {
-    padding: 60px 60px;
-  }
 }
 
 .backLink {
@@ -114,7 +51,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-text-main, #334155);
+  color: #334155;
   text-decoration: none;
   font-weight: 600;
   font-size: 0.88rem;
@@ -130,7 +67,7 @@
 }
 
 .backLink:hover {
-  color: var(--color-primary-dark, #b8574c);
+  color: #b8574c;
   transform: translateY(-1.5px);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
   border-color: rgba(184, 87, 76, 0.3);
@@ -138,23 +75,15 @@
 
 .formWrapper {
   width: 100%;
-  max-width: 420px;
-  margin: 60px auto 0;
-  background: rgba(255, 255, 255, 0.92);
+  max-width: 440px;
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.95);
   border-radius: 28px;
-  padding: 36px 28px;
+  padding: 40px 32px;
   box-shadow: 0 20px 50px -10px rgba(184, 87, 76, 0.16), 0 10px 30px -5px rgba(0, 0, 0, 0.04);
   animation: modalPopIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@media (min-width: 600px) {
-  .formWrapper {
-    padding: 44px 36px;
-    margin-top: 0;
-  }
 }
 
 .brandBadge {
@@ -163,7 +92,7 @@
   gap: 8px;
   background: linear-gradient(135deg, #fff5f3 0%, #fceae6 100%);
   border: 1px solid #fecdd3;
-  color: var(--color-primary-dark, #b8574c);
+  color: #b8574c;
   padding: 6px 14px;
   border-radius: 20px;
   font-size: 0.82rem;
@@ -172,23 +101,19 @@
   box-shadow: 0 2px 8px rgba(184, 87, 76, 0.08);
 }
 
-.brandBadgeIcon {
-  color: var(--color-primary-dark, #b8574c);
-}
-
 .title {
-  font-size: 2.2rem;
+  font-size: 2rem;
   font-weight: 800;
-  color: var(--color-primary-dark, #b8574c);
+  color: #b8574c;
   margin-bottom: 8px;
   line-height: 1.25;
   letter-spacing: -0.02em;
 }
 
 .subtitle {
-  color: var(--color-text-muted, #64748b);
-  margin-bottom: 32px;
-  font-size: 0.96rem;
+  color: #64748b;
+  margin-bottom: 28px;
+  font-size: 0.94rem;
   line-height: 1.5;
 }
 
@@ -200,7 +125,7 @@
   display: block;
   margin-bottom: 8px;
   font-weight: 700;
-  color: var(--color-text-main, #1e293b);
+  color: #1e293b;
   font-size: 0.9rem;
 }
 
@@ -217,9 +142,29 @@
   transition: color 0.2s ease;
 }
 
+.eyeBtn {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.eyeBtn:hover {
+  color: #b8574c;
+}
+
 .input {
   width: 100%;
-  padding: 15px 16px 15px 48px;
+  padding: 15px 46px 15px 48px;
   border: 1.5px solid #e2e8f0;
   border-radius: 16px;
   font-size: 0.98rem;
@@ -231,14 +176,9 @@
 
 .input:focus {
   outline: none;
-  border-color: var(--color-primary-dark, #b8574c);
+  border-color: #b8574c;
   background: #ffffff;
   box-shadow: 0 0 0 4px rgba(184, 87, 76, 0.12);
-}
-
-.input:focus + .inputIcon,
-.inputWrapper:focus-within .inputIcon {
-  color: var(--color-primary-dark, #b8574c);
 }
 
 .submitBtn {
@@ -254,89 +194,42 @@
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 10px 25px rgba(184, 87, 76, 0.32);
   margin-top: 12px;
-  letter-spacing: -0.01em;
 }
 
-.submitBtn:hover {
+.submitBtn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 14px 30px rgba(184, 87, 76, 0.42);
   background: linear-gradient(135deg, #a64c42 0%, #7d332b 100%);
 }
 
-.submitBtn:active {
-  transform: translateY(0);
+.submitBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
-.toggleAuth {
-  margin-top: 28px;
-  text-align: center;
-  background: #faf5f3;
-  border: 1px solid #f3e5e0;
-  border-radius: 16px;
-  padding: 14px 18px;
-  font-size: 0.9rem;
-  color: #64748b;
+.strengthBarWrapper {
+  margin-top: 8px;
 }
 
-.toggleAuth button {
-  background: none;
-  border: none;
-  color: var(--color-primary-dark, #b8574c);
-  font-weight: 800;
-  cursor: pointer;
-  font-size: 0.92rem;
-  padding: 0 4px;
-  transition: color 0.2s ease;
-}
-
-.toggleAuth button:hover {
-  text-decoration: underline;
-  color: #8f3c33;
-}
-
-.forgotPasswordRow {
+.strengthTrack {
+  height: 6px;
+  width: 100%;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
   display: flex;
-  justify-content: flex-end;
-  margin-top: 6px;
-  margin-bottom: 12px;
 }
 
-.forgotPasswordLink {
-  background: none;
-  border: none;
-  color: var(--color-primary-dark, #b8574c);
-  font-size: 0.85rem;
+.strengthFill {
+  height: 100%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.strengthText {
+  font-size: 0.78rem;
   font-weight: 600;
-  cursor: pointer;
-  padding: 4px 0;
-  transition: opacity 0.2s ease;
-}
-
-.forgotPasswordLink:hover {
-  text-decoration: underline;
-  opacity: 0.85;
-}
-
-.successBox {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  color: #166534;
-  padding: 16px;
-  border-radius: 16px;
-  margin-bottom: 24px;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.devBanner {
-  margin-top: 12px;
-  background: #fffbe6;
-  border: 1px dashed #ffe58f;
-  color: #873800;
-  padding: 10px 12px;
-  border-radius: 10px;
-  font-size: 0.8rem;
-  word-break: break-all;
+  margin-top: 4px;
+  display: block;
 }
 
 @keyframes modalPopIn {
@@ -349,4 +242,3 @@
     transform: translateY(0) scale(1);
   }
 }
-

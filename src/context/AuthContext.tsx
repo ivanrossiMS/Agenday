@@ -22,6 +22,8 @@ type AuthContextType = {
   updateProfile: (data: Partial<User>) => void;
   inactivateProfile: () => void;
   deleteProfile: () => void;
+  requestPasswordReset: (email: string) => Promise<{ success: boolean; message: string; devUrl?: string }>;
+  resetPasswordWithToken: (token: string, newPassword: string, email?: string) => Promise<{ success: boolean; message: string }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -264,8 +266,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout();
   };
 
+  const requestPasswordReset = async (email: string) => {
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error("Erro ao solicitar redefinição de senha:", err);
+      return { success: false, message: "Erro de conexão ao enviar solicitação." };
+    }
+  };
+
+  const resetPasswordWithToken = async (token: string, newPassword: string, email?: string) => {
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, newPassword, email }),
+      });
+      const data = await res.json();
+
+      if (data.success && data.email) {
+        const usersListStr = localStorage.getItem("@agenday:users_list");
+        if (usersListStr) {
+          try {
+            const usersList: User[] = JSON.parse(usersListStr);
+            const idx = usersList.findIndex(u => u.email.toLowerCase() === data.email.toLowerCase());
+            if (idx >= 0) {
+              usersList[idx].password = newPassword;
+              localStorage.setItem("@agenday:users_list", JSON.stringify(usersList));
+            }
+          } catch (e) {}
+        }
+      }
+
+      return data;
+    } catch (err) {
+      console.error("Erro ao redefinir senha:", err);
+      return { success: false, message: "Erro de conexão ao redefinir a senha." };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, register, updateProfile, inactivateProfile, deleteProfile }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      logout, 
+      register, 
+      updateProfile, 
+      inactivateProfile, 
+      deleteProfile,
+      requestPasswordReset,
+      resetPasswordWithToken
+    }}>
       {children}
     </AuthContext.Provider>
   );
