@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { User, CalendarDays, LogOut, ChevronDown, LayoutDashboard, UserCircle, Menu, X, Layers } from "lucide-react";
+import { User, CalendarDays, LogOut, ChevronDown, LayoutDashboard, UserCircle, Menu, X, Layers, Sparkles } from "lucide-react";
 import styles from "./Header.module.css";
 import { useAuth } from "@/context/AuthContext";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
@@ -68,7 +68,8 @@ export default function Header() {
       {/* Center: Navigation Links */}
       <nav className={styles.navCenter}>
         <Link href="/servicos" className={`${styles.navLink} ${pathname === '/servicos' ? styles.active : ''}`}>
-          Serviços
+          <Sparkles size={16} className={styles.navLinkIcon} />
+          <span>Serviços</span>
         </Link>
       </nav>
 
