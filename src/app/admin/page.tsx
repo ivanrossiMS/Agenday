@@ -6,7 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useServices, ServiceItem } from "@/context/ServicesContext";
 import { useSiteSettings, SiteSettings } from "@/context/SiteSettingsContext";
 import { 
-  CalendarDays, Users, Gift, MessageCircle, Ban, 
+  CalendarDays, Users, Gift, MessageCircle, MessageSquare, Ban, 
+
   CheckCircle2, DollarSign, FileText, QrCode, Plus, Trash2, Edit3, Image as ImageIcon, Layout, X,
   TrendingUp, PieChart, CreditCard, Filter, Sparkles, ChevronDown, Grid, Palette, Cake, LogOut, UserCircle, Camera, Search, User,
   Star, RefreshCw, Clock, Send, Eye, Settings, UploadCloud, Lock, Unlock, XCircle, Bell, Power, UserX, UserCheck, Mail, Phone
@@ -231,6 +232,7 @@ export default function AdminDashboard() {
         loginHeroImage: settings.loginHeroImage || "",
         loginQuote: settings.loginQuote || "",
         loginQuoteAuthor: settings.loginQuoteAuthor || "",
+        testimonials: settings.testimonials || [],
       });
     }
   }, [settings]);
@@ -1896,9 +1898,78 @@ export default function AdminDashboard() {
                   />
                 </div>
               </div>
+
+              {/* Card 5: Depoimentos de Clientes */}
+              <div className={styles.settingsCard}>
+                <div className={styles.settingsHeader}>
+                  <div className={styles.settingsHeaderIcon}><MessageSquare size={20} /></div>
+                  Depoimentos de Clientes
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {(siteForm.testimonials || []).map((testim, index) => (
+                    <div key={index} style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid #e2e8f0", position: "relative" }}>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          const newT = [...(siteForm.testimonials || [])];
+                          newT.splice(index, 1);
+                          setSiteForm({...siteForm, testimonials: newT});
+                        }} 
+                        style={{ position: "absolute", top: "12px", right: "12px", background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "8px", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                        title="Excluir Depoimento"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+
+                      <div style={{ marginBottom: "12px", paddingRight: "40px" }}>
+                        <label className={styles.modernLabel}>Depoimento / Texto #{index + 1}</label>
+                        <textarea 
+                          className={styles.modernInput} 
+                          style={{ minHeight: "70px", resize: "vertical" }} 
+                          value={testim.quote} 
+                          onChange={e => {
+                            const newT = [...(siteForm.testimonials || [])];
+                            newT[index] = { ...newT[index], quote: e.target.value };
+                            setSiteForm({...siteForm, testimonials: newT});
+                          }} 
+                          placeholder="Digite o depoimento da cliente..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className={styles.modernLabel}>Nome da Cliente / Autor</label>
+                        <input 
+                          type="text" 
+                          className={styles.modernInput} 
+                          value={testim.author} 
+                          onChange={e => {
+                            const newT = [...(siteForm.testimonials || [])];
+                            newT[index] = { ...newT[index], author: e.target.value };
+                            setSiteForm({...siteForm, testimonials: newT});
+                          }} 
+                          placeholder="Ex: Amanda Guimarães"
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  <button 
+                    type="button" 
+                    className={styles.addStepBtn}
+                    onClick={() => setSiteForm({
+                      ...siteForm, 
+                      testimonials: [...(siteForm.testimonials || []), { id: "t_" + Date.now(), quote: "", author: "" }]
+                    })}
+                  >
+                    <Plus size={16} /> Adicionar Novo Depoimento
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className={styles.saveActionBar}>
+
 
               <button type="submit" className="btn-primary" style={{ padding: "16px 40px", fontSize: "1rem", borderRadius: "14px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 4px 16px rgba(var(--color-primary-rgb), 0.3)" }}>
                 <CheckCircle2 size={20} /> Salvar Configurações

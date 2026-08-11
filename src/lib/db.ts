@@ -120,6 +120,8 @@ export async function ensureTablesExist(sql: any) {
     await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS login_hero_image TEXT;`;
     await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS login_quote TEXT;`;
     await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS login_quote_author TEXT;`;
+    await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS testimonials JSONB;`;
+
 
 
 

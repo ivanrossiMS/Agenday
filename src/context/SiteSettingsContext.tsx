@@ -2,6 +2,12 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
+export type TestimonialItem = {
+  id?: string;
+  quote: string;
+  author: string;
+};
+
 export type SiteSettings = {
   heroTitle: string;
   heroSubtitle: string;
@@ -20,12 +26,26 @@ export type SiteSettings = {
   loginHeroImage?: string;
   loginQuote?: string;
   loginQuoteAuthor?: string;
+  testimonials?: TestimonialItem[];
 };
 
 type SiteSettingsContextType = {
   settings: SiteSettings;
   updateSettings: (newSettings: Partial<SiteSettings>) => void;
 };
+
+const defaultTestimonials: TestimonialItem[] = [
+  {
+    id: "t1",
+    quote: "Foi a melhor extensão de cílios que já fiz. Super natural e durou semanas intacta. O ambiente é um luxo!",
+    author: "Amanda Guimarães"
+  },
+  {
+    id: "t2",
+    quote: "O cuidado que elas têm com a nossa unha é surreal. A esmaltação em gel ficou perfeita, sem bolhas, sem defeitos.",
+    author: "Letícia Carvalho"
+  }
+];
 
 const defaultSettings: SiteSettings = {
   heroTitle: "A sua beleza tratada como uma verdadeira joia",
@@ -48,10 +68,9 @@ const defaultSettings: SiteSettings = {
   logoUrl: "",
   loginHeroImage: "https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?q=80&w=1200&auto=format&fit=crop",
   loginQuote: "A beleza começa no momento em que você decide ser você mesma.",
-  loginQuoteAuthor: "Coco Chanel"
+  loginQuoteAuthor: "Coco Chanel",
+  testimonials: defaultTestimonials
 };
-
-
 
 const SiteSettingsContext = createContext<SiteSettingsContextType | undefined>(undefined);
 
@@ -85,6 +104,11 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
             if (typeof parsedWorkDays === "string") {
               try { parsedWorkDays = JSON.parse(parsedWorkDays); } catch (err) {}
             }
+            let parsedTestimonials = data.testimonials;
+            if (typeof parsedTestimonials === "string") {
+              try { parsedTestimonials = JSON.parse(parsedTestimonials); } catch (err) {}
+            }
+
             const formatted: SiteSettings = {
               heroTitle: data.hero_title !== null && data.hero_title !== undefined ? data.hero_title : localSettings.heroTitle,
               heroSubtitle: data.hero_subtitle !== null && data.hero_subtitle !== undefined ? data.hero_subtitle : localSettings.heroSubtitle,
@@ -102,8 +126,10 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
               logoUrl: data.logo_url !== null && data.logo_url !== undefined ? data.logo_url : (localSettings.logoUrl || ""),
               loginHeroImage: data.login_hero_image !== null && data.login_hero_image !== undefined ? data.login_hero_image : (localSettings.loginHeroImage || defaultSettings.loginHeroImage),
               loginQuote: data.login_quote !== null && data.login_quote !== undefined ? data.login_quote : (localSettings.loginQuote || defaultSettings.loginQuote),
-              loginQuoteAuthor: data.login_quote_author !== null && data.login_quote_author !== undefined ? data.login_quote_author : (localSettings.loginQuoteAuthor || defaultSettings.loginQuoteAuthor)
+              loginQuoteAuthor: data.login_quote_author !== null && data.login_quote_author !== undefined ? data.login_quote_author : (localSettings.loginQuoteAuthor || defaultSettings.loginQuoteAuthor),
+              testimonials: Array.isArray(parsedTestimonials) ? parsedTestimonials : (localSettings.testimonials || defaultTestimonials)
             };
+
 
 
 

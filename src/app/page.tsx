@@ -91,28 +91,28 @@ export default function Home() {
       </section>
 
       {/* Testimonials */}
-      <section className={styles.testimonialSection}>
-        <div className={styles.sectionHeader} style={{ marginBottom: "48px" }}>
-          <h2 className={styles.sectionTitle}>O que nossas clientes dizem</h2>
-        </div>
-        
-        <div className={styles.testimonialGrid}>
-          <div className={styles.testimonialCard}>
-            <Quote size={40} className={styles.quoteIcon} />
-            <p className={styles.testimonialText}>
-              "Foi a melhor extensão de cílios que já fiz. Super natural e durou semanas intacta. O ambiente é um luxo!"
-            </p>
-            <div className={styles.testimonialAuthor}>— Amanda Guimarães</div>
+      {settings.testimonials && settings.testimonials.length > 0 && (
+        <section className={styles.testimonialSection}>
+          <div className={styles.sectionHeader} style={{ marginBottom: "48px" }}>
+            <h2 className={styles.sectionTitle}>O que nossas clientes dizem</h2>
           </div>
-          <div className={styles.testimonialCard}>
-            <Quote size={40} className={styles.quoteIcon} />
-            <p className={styles.testimonialText}>
-              "O cuidado que elas têm com a nossa unha é surreal. A esmaltação em gel ficou perfeita, sem bolhas, sem defeitos."
-            </p>
-            <div className={styles.testimonialAuthor}>— Letícia Carvalho</div>
+          
+          <div className={styles.testimonialGrid}>
+            {settings.testimonials.map((t, idx) => (
+              <div key={t.id || idx} className={styles.testimonialCard}>
+                <Quote size={40} className={styles.quoteIcon} />
+                <p className={styles.testimonialText}>
+                  "{t.quote.replace(/^["“]|["”]$/g, '')}"
+                </p>
+                <div className={styles.testimonialAuthor}>
+                  {t.author ? (t.author.startsWith("—") ? t.author : `— ${t.author}`) : ""}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
     </main>
   );
 }

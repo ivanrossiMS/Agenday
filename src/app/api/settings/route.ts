@@ -26,11 +26,12 @@ export async function POST(req: Request) {
       aboutTitle, aboutText, aboutImage,
       businessStart, businessEnd, workDays, whatsappNumber,
       salonAddress, mapsLink, preparationSteps, logoUrl,
-      loginHeroImage, loginQuote, loginQuoteAuthor
+      loginHeroImage, loginQuote, loginQuoteAuthor, testimonials
     } = body;
 
     const stepsJson = JSON.stringify(preparationSteps || []);
     const workDaysJson = JSON.stringify(workDays || [1, 2, 3, 4, 5, 6]);
+    const testimonialsJson = JSON.stringify(testimonials || []);
 
     await sql`
       INSERT INTO site_settings (
@@ -38,14 +39,14 @@ export async function POST(req: Request) {
         about_title, about_text, about_image,
         business_start, business_end, work_days, whatsapp_number,
         salon_address, maps_link, preparation_steps, logo_url,
-        login_hero_image, login_quote, login_quote_author, updated_at
+        login_hero_image, login_quote, login_quote_author, testimonials, updated_at
       )
       VALUES (
         'default', ${heroTitle || ''}, ${heroSubtitle || ''}, ${heroImage || ''},
         ${aboutTitle || ''}, ${aboutText || ''}, ${aboutImage || ''},
         ${businessStart || '09:00'}, ${businessEnd || '18:00'}, ${workDaysJson}::jsonb, ${whatsappNumber || ''},
         ${salonAddress || ''}, ${mapsLink || ''}, ${stepsJson}::jsonb, ${logoUrl || ''},
-        ${loginHeroImage || ''}, ${loginQuote || ''}, ${loginQuoteAuthor || ''}, NOW()
+        ${loginHeroImage || ''}, ${loginQuote || ''}, ${loginQuoteAuthor || ''}, ${testimonialsJson}::jsonb, NOW()
       )
       ON CONFLICT (id) DO UPDATE SET
         hero_title = EXCLUDED.hero_title,
@@ -65,8 +66,10 @@ export async function POST(req: Request) {
         login_hero_image = EXCLUDED.login_hero_image,
         login_quote = EXCLUDED.login_quote,
         login_quote_author = EXCLUDED.login_quote_author,
+        testimonials = EXCLUDED.testimonials,
         updated_at = NOW()
     `;
+
 
 
     return NextResponse.json({ success: true });
