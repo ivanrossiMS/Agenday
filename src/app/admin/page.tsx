@@ -252,13 +252,25 @@ export default function AdminDashboard() {
       phone: "",
       address: "",
       birthDate: "",
-      photoUrl: ""
+      photoUrl: "",
+      password: ""
     });
     setShowEditClientModal(true);
   };
 
   const handleEditClientClick = (client: ClientItem) => {
-    setClientForm(client);
+    let pass = client.password || "";
+    if (!pass && client.email) {
+      const usersListStr = localStorage.getItem("@agenday:users_list");
+      if (usersListStr) {
+        try {
+          const list = JSON.parse(usersListStr);
+          const matched = list.find((u: any) => u.email.toLowerCase() === client.email.toLowerCase());
+          if (matched && matched.password) pass = matched.password;
+        } catch (e) {}
+      }
+    }
+    setClientForm({ ...client, password: pass });
     setShowEditClientModal(true);
   };
 
@@ -279,10 +291,39 @@ export default function AdminDashboard() {
         address: clientForm.address || "",
         birthDate: clientForm.birthDate || "",
         photoUrl: clientForm.photoUrl || "",
+        password: clientForm.password || ""
       });
     }
+
+    // Sincronizar com lista de usuários de autenticação para permitir login do cliente
+    if (clientForm.email && clientForm.password) {
+      const usersListStr = localStorage.getItem("@agenday:users_list");
+      let usersList: any[] = [];
+      if (usersListStr) {
+        try { usersList = JSON.parse(usersListStr); } catch (e) {}
+      }
+      const idx = usersList.findIndex((u: any) => u.email.toLowerCase() === clientForm.email!.toLowerCase());
+      const userObj = {
+        id: clientForm.id || ("client_" + Date.now()),
+        name: clientForm.name,
+        email: clientForm.email,
+        role: "client",
+        phone: clientForm.phone || "",
+        birthDate: clientForm.birthDate || "",
+        password: clientForm.password,
+        status: clientForm.status || "active"
+      };
+      if (idx >= 0) {
+        usersList[idx] = { ...usersList[idx], ...userObj };
+      } else {
+        usersList.push(userObj);
+      }
+      localStorage.setItem("@agenday:users_list", JSON.stringify(usersList));
+    }
+
     setShowEditClientModal(false);
   };
+
 
 
   const handleDeleteClient = (id: string) => {
@@ -2710,6 +2751,18 @@ export default function AdminDashboard() {
                 <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 500 }}>E-mail *</label>
                 <input type="email" value={clientForm.email || ""} onChange={e => setClientForm({...clientForm, email: e.target.value})} required style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--color-border)" }} />
               </div>
+              <div>
+                <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 500 }}>Senha de Acesso *</label>
+                <input 
+                  type="password" 
+                  value={clientForm.password || ""} 
+                  onChange={e => setClientForm({...clientForm, password: e.target.value})} 
+                  required={!clientForm.id} 
+                  placeholder="Defina a senha do cliente" 
+                  style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--color-border)" }} 
+                />
+              </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div>
                   <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 500 }}>Telefone / WhatsApp *</label>

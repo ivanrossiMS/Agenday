@@ -11,7 +11,9 @@ export type ClientItem = {
   birthDate?: string;
   photoUrl?: string;
   status?: "active" | "inactive";
+  password?: string;
 };
+
 
 type ClientsContextType = {
   clients: ClientItem[];
