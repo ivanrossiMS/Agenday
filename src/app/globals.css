@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
   /* Premium Beauty Salon Color Palette - Redesign */
@@ -25,7 +25,8 @@
 
   /* Typography */
   --font-sans: 'Inter', sans-serif;
-  --font-heading: 'Inter', sans-serif; /* Mockup mostly uses a clean geometric sans */
+  --font-heading: 'Inter', sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
 
   /* Shadows for depth */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);

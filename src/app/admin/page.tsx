@@ -681,7 +681,7 @@ export default function AdminDashboard() {
       {/* Sidebar Ultra Moderna */}
       <aside className={styles.sidebar}>
         <div className={styles.sidebarLogo}>
-          <Sparkles size={32} color="var(--color-primary-main)" /> Agenday
+          <Sparkles size={32} color="var(--color-primary-main)" /> Fran Marinho
         </div>
         
         <nav className={styles.sidebarNav}>
@@ -715,7 +715,7 @@ export default function AdminDashboard() {
           <div className={styles.headerTopRow}>
             <div className={styles.mobileHeaderBrand}>
               <Sparkles size={22} color="var(--color-primary)" />
-              <span>Agenday</span>
+              <span>Fran Marinho</span>
             </div>
 
             <div className={styles.headerUser}>

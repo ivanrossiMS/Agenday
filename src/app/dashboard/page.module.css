@@ -1,122 +1,221 @@
+/* Container & Ambient Background */
 .container {
-  padding: 120px 24px 60px;
-  max-width: 1100px;
+  padding: 110px 24px 80px;
+  max-width: 1180px;
   margin: 0 auto;
   min-height: 100vh;
+  position: relative;
+}
+
+.bgGlowRight {
+  position: absolute;
+  top: 0;
+  right: -40px;
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle at 75% 15%, rgba(244, 162, 97, 0.18) 0%, rgba(250, 247, 245, 0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.botanicalDecor {
+  position: absolute;
+  top: 30px;
+  right: 10px;
+  width: 280px;
+  height: 280px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.85;
 }
 
 .pageHeader {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  position: relative;
+  z-index: 1;
+}
+
+.titleSparkleContainer {
+  margin-bottom: 4px;
 }
 
 .title {
-  font-size: 2.2rem;
-  color: var(--color-primary);
-  font-weight: 600;
-  margin-bottom: 4px;
+  font-size: 2.6rem;
+  color: #18181B;
+  font-weight: 800;
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
-  color: var(--color-text-muted);
-  font-size: 1rem;
-}
-
-/* Alert Box */
-.alertBox {
-  background-color: var(--color-warning-bg);
-  border: 1px solid rgba(242, 153, 74, 0.3);
-  border-radius: var(--radius-md);
-  padding: 20px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 32px;
-}
-
-.alertContent {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.alertIconWrapper {
-  background-color: rgba(242, 153, 74, 0.15);
-  padding: 12px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.alertIcon {
-  color: var(--color-warning-icon);
-}
-
-.alertText strong {
-  display: block;
+  color: #71717A;
   font-size: 1.05rem;
-  color: var(--color-text-main);
-  margin-bottom: 4px;
-}
-
-.alertText p {
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
-  margin: 0;
-}
-
-.alertAction {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-
-.alertTotal {
-  font-weight: 600;
-  color: var(--color-text-main);
-}
-
-.btnPayNow {
-  background-color: #B26A5A;
-  color: #FFF;
-  padding: 10px 24px;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-}
-.btnPayNow:hover {
-  background-color: #9C584A;
+  font-weight: 400;
 }
 
 /* Grid Layout */
 .grid {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 24px;
+  grid-template-columns: 1fr 410px;
+  gap: 28px;
+  position: relative;
+  z-index: 1;
 }
 
 .leftColumn {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  min-width: 0;
 }
 
 .rightColumn {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  min-width: 0;
 }
 
-/* Next Appointment Card */
+/* Base Cards */
+.nextAppointmentCard, .emptyNextCard, .loyaltyCard, .recentHistoryCard {
+  background: #FFFFFF;
+  border-radius: 24px;
+  border: 1px solid #F3EBE6;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+  box-sizing: border-box;
+}
+
 .nextAppointmentCard {
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--color-border);
+  padding: 28px 24px;
 }
 
+.emptyNextCard {
+  padding: 48px 32px 36px;
+  text-align: center;
+}
+
+.emptyCalendarCircleWrapper {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 24px;
+}
+
+.emptyCalendarCircle {
+  width: 88px;
+  height: 88px;
+  background: #FFF5F1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(217, 107, 82, 0.12);
+}
+
+.sparkleTL {
+  position: absolute;
+  top: 4px;
+  left: -8px;
+  color: #F4A261;
+  font-size: 0.9rem;
+}
+
+.sparkleTR {
+  position: absolute;
+  top: 10px;
+  right: -10px;
+  color: #E8927C;
+  font-size: 1.1rem;
+}
+
+.sparkleBL {
+  position: absolute;
+  bottom: 6px;
+  left: -4px;
+  color: #E8927C;
+  font-size: 0.85rem;
+}
+
+.emptyCardTitle {
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  color: #C85A48;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.emptyCardSub {
+  color: #71717A;
+  font-size: 0.95rem;
+  margin-bottom: 28px;
+}
+
+.btnAgendarNovo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #D96B52;
+  color: #FFFFFF;
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.98rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(217, 107, 82, 0.28);
+  transition: all 0.25s ease;
+}
+
+.btnAgendarNovo:hover {
+  background: #C85A48;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(200, 90, 72, 0.35);
+}
+
+.sparkleDivider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 32px auto 24px;
+  max-width: 420px;
+}
+
+.sparkleDividerLine {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #F0E5DF, transparent);
+}
+
+.sparkleDividerIcon {
+  padding: 0 12px;
+  color: #E09A85;
+  font-size: 0.85rem;
+}
+
+.emptyCardTip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #71717A;
+  font-size: 0.9rem;
+}
+
+.tipIconCircle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #FFF3ED;
+  color: #D96B52;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+/* Card Header Flex */
 .cardHeaderFlex {
   display: flex;
   justify-content: space-between;
@@ -127,1049 +226,9 @@
 .cardTitle {
   font-size: 0.9rem;
   text-transform: uppercase;
-  color: var(--color-primary);
+  color: #C85A48;
   letter-spacing: 0.5px;
-  font-weight: 600;
-}
-
-.pendingTag {
-  background-color: rgba(244, 162, 97, 0.15);
-  color: #E67E22;
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.8rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.appointmentMainInfo {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
-.dateBox {
-  background-color: var(--color-secondary);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-width: 90px;
-  height: 110px;
-}
-
-.dateMonth {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-text-main);
-}
-
-.dateDay {
-  font-size: 2.2rem;
   font-weight: 700;
-  color: var(--color-primary);
-  line-height: 1;
-  margin: 4px 0;
-}
-
-.timeInfo {
-  flex: 1;
-}
-
-.timeInfo h3 {
-  font-size: 1.3rem;
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: var(--color-text-main);
-}
-
-.daysLeft {
-  color: var(--color-error);
-  font-size: 0.9rem;
-  font-weight: 500;
-  display: inline-block;
-  margin-bottom: 16px;
-}
-
-.servicesList {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.serviceItem {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--color-border);
-}
-.serviceItem:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.professionalAvatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.serviceDetails {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.serviceName {
-  font-weight: 600;
-  color: var(--color-text-main);
-  font-size: 0.95rem;
-}
-
-.professionalInfo {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.serviceIcon {
-  background-color: var(--color-background);
-  padding: 8px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.divider {
-  height: 1px;
-  background-color: var(--color-border);
-  margin: 24px 0;
-}
-
-.infoRow {
-  display: flex;
-  gap: 32px;
-  margin-bottom: 16px;
-}
-
-.infoItem {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-}
-
-.locationRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.locationInfo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.95rem;
-  color: var(--color-text-muted);
-}
-.locationInfo strong {
-  color: var(--color-text-main);
-}
-
-.routeLink {
-  color: var(--color-primary);
-  font-size: 0.9rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.arriveInfo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.95rem;
-  color: var(--color-text-muted);
-  margin-bottom: 24px;
-}
-
-.actionButtonsRow {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-/* Modern Action Hub */
-.actionHub {
-  margin-top: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  border-top: 1px dashed var(--color-border);
-  padding-top: 18px;
-}
-
-/* Hero Payment Button */
-.heroPaymentBtn {
-  width: 100%;
-  background: linear-gradient(135deg, #C16355 0%, #A85145 100%);
-  color: #FFFFFF;
-  border: none;
-  border-radius: 14px;
-  padding: 14px 20px;
-  font-weight: 600;
-  font-size: 0.98rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(193, 99, 85, 0.28);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.heroPaymentBtn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(193, 99, 85, 0.38);
-  background: linear-gradient(135deg, #C96B5D 0%, #B0574B 100%);
-}
-
-.heroPaymentBtn:active {
-  transform: translateY(0);
-}
-
-.heroPaymentLeft {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.heroPaymentRight {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 4px 12px;
-  border-radius: 20px;
-  backdrop-filter: blur(4px);
-}
-
-/* Quick Actions Grid */
-.quickActionsGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.btnQuickAction {
-  background: var(--color-background);
-  color: var(--color-text-main);
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  padding: 12px 14px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  white-space: nowrap;
-}
-
-.btnQuickAction:hover {
-  background: var(--color-primary-light);
-  border-color: rgba(193, 99, 85, 0.35);
-  color: var(--color-primary-dark);
-  transform: translateY(-1.5px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
-}
-
-.btnQuickAction:active {
-  transform: translateY(0);
-}
-
-.quickActionIcon {
-  color: var(--color-primary);
-  transition: transform 0.2s ease;
-  flex-shrink: 0;
-}
-
-.btnQuickAction:hover .quickActionIcon {
-  transform: scale(1.12);
-}
-
-.btnQuickActionDanger:hover {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.35);
-  color: #DC2626;
-}
-
-.quickActionIconDanger {
-  color: #EF4444;
-  transition: transform 0.2s ease;
-  flex-shrink: 0;
-}
-
-.btnQuickActionDanger:hover .quickActionIconDanger {
-  transform: scale(1.12);
-}
-
-/* Action Footer Row (Cancel Link) */
-.actionFooterRow {
-  display: flex;
-  justify-content: center;
-  padding-top: 2px;
-}
-
-.btnGhostCancel {
-  background: transparent;
-  border: none;
-  color: #94A3B8;
-  font-size: 0.84rem;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  padding: 6px 14px;
-  border-radius: 20px;
-  transition: all 0.2s ease;
-}
-
-.btnGhostCancel:hover {
-  color: #EF4444;
-  background: rgba(239, 68, 68, 0.08);
-}
-
-.btnPrimaryFilled {
-  background-color: #C16355;
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 12px 24px;
-  font-weight: 500;
-  font-size: 1rem;
-  flex: 1;
-  transition: all 0.2s ease;
-}
-.btnPrimaryFilled:hover {
-  background-color: #A85145;
-}
-
-.btnSecondaryOutlined {
-  background-color: transparent;
-  color: #C16355;
-  border: 1px solid #C16355;
-  border-radius: var(--radius-sm);
-  padding: 12px 16px;
-  font-weight: 500;
-  font-size: 0.95rem;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.btnSecondaryOutlined:hover {
-  background-color: var(--color-primary-light);
-}
-
-.btnCancel {
-  background-color: transparent;
-  color: #D32F2F;
-  border: 1px solid rgba(211, 47, 47, 0.35);
-  border-radius: var(--radius-sm);
-  padding: 12px 16px;
-  font-weight: 500;
-  font-size: 0.95rem;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.btnCancel:hover {
-  background-color: #FFEBEE;
-  border-color: #D32F2F;
-}
-
-.btnMore {
-  background-color: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  width: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-main);
-}
-.btnMore:hover {
-  background-color: var(--color-background);
-}
-
-.cardFooterLinks {
-  display: flex;
-  justify-content: space-around;
-  border-top: 1px solid var(--color-border);
-  padding-top: 24px;
-}
-
-.footerLink {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-text-main);
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-.footerLink:hover {
-  color: var(--color-primary);
-}
-
-/* Recent History Card */
-.recentHistoryCard {
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--color-border);
-}
-
-.viewAllLink {
-  color: var(--color-primary);
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.historyItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 16px;
-  padding: 14px 16px;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  transition: all 0.2s ease;
-}
-
-.historyItem:hover {
-  border-color: var(--color-primary-light);
-  box-shadow: var(--shadow-sm);
-}
-
-.historyMain {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex: 1;
-  min-width: 0;
-}
-
-.historyIconWrapper {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.iconConfirmedWrapper {
-  background-color: #E8F5E9;
-  color: #2E7D32;
-}
-
-.iconPendingWrapper {
-  background-color: #FFF3E0;
-  color: #E65100;
-}
-
-.iconCompletedWrapper {
-  background-color: #E8F5E9;
-  color: #2E7D32;
-}
-
-.iconCanceledWrapper {
-  background-color: #FFEBEE;
-  color: #C62828;
-}
-
-.iconRescheduledWrapper {
-  background-color: #E3F2FD;
-  color: #1565C0;
-}
-
-.historyDetails {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.historyServiceName {
-  font-weight: 600;
-  color: var(--color-text-main);
-  font-size: 0.98rem;
-  white-space: normal;
-  word-break: break-word;
-  line-height: 1.3;
-}
-
-.historyInfo {
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
-  margin-top: 3px;
-}
-
-.historySubMeta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 6px;
-  flex-wrap: wrap;
-}
-
-.historyPrice {
-  font-weight: 700;
-  color: var(--color-primary-dark);
-  font-size: 0.9rem;
-}
-
-.paymentPaid {
-  background-color: #E8F5E9;
-  color: #2E7D32;
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
-  font-size: 0.76rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.paymentOpen {
-  background-color: rgba(244, 162, 97, 0.15);
-  color: #E65100;
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
-  font-size: 0.76rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-
-.historyActions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.statusConfirmed {
-  background-color: #E8F5E9;
-  color: #2E7D32;
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.8rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.statusPending {
-  background-color: rgba(244, 162, 97, 0.15);
-  color: #E67E22;
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.8rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.statusCompleted {
-  background-color: #E8F5E9;
-  color: #2E7D32;
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.8rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.statusCanceled {
-  background-color: #FFEBEE;
-  color: #C62828;
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.8rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.statusRescheduled {
-  background-color: #E3F2FD;
-  color: #1565C0;
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.8rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.statusCompletedBadge {
-  color: #2E7D32;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.btnSecondaryOutlinedSmall {
-  background-color: transparent;
-  color: #C16355;
-  border: 1px solid #C16355;
-  border-radius: var(--radius-full);
-  padding: 8px 16px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.btnSecondaryOutlinedSmall:hover {
-  background-color: var(--color-primary-light);
-}
-
-/* Right Column Cards */
-.loyaltyCard, .preparationCard {
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--color-border);
-}
-
-.loyaltyHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.loyaltyTitle {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--color-text-main);
-}
-
-.loyaltySubtitle {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.loyaltyStampsGrid {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.loyaltyStampCircle {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1.5px dashed var(--color-border);
-  background: var(--color-background);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.loyaltyStampFilled {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-  color: #FFFFFF;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 3px 8px rgba(193, 99, 85, 0.35);
-}
-
-.loyaltyCount {
-  font-weight: 600;
-  color: var(--color-text-main);
-  margin-bottom: 4px;
-}
-
-.loyaltyDesc {
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-  margin-bottom: 12px;
-}
-
-.loyaltyRulesLink {
-  color: var(--color-primary);
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.preparationTitle {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--color-text-main);
-}
-
-.preparationList {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 24px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.preparationList li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 0.95rem;
-  color: var(--color-text-main);
-}
-
-.btnUploadPhoto {
-  width: 100%;
-  background-color: transparent;
-  color: #C16355;
-  border: 1px solid #C16355;
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  font-weight: 500;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.2s ease;
-}
-.btnUploadPhoto:hover {
-  background-color: var(--color-primary-light);
-}
-
-/* FAB */
-.fabWhatsApp {
-  position: fixed;
-  bottom: 32px;
-  right: 32px;
-  background-color: #FFF;
-  color: #2A2A2A;
-  border: 1px solid var(--color-border);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-  border-radius: 30px;
-  padding: 12px 24px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-weight: 600;
-  font-size: 1rem;
-  z-index: 90;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.fabWhatsApp svg {
-  color: #25D366; /* WhatsApp green */
-}
-.fabWhatsApp:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(0,0,0,0.18);
-}
-
-/* Responsive Media Queries */
-@media (max-width: 900px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .alertBox {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  
-  .alertAction {
-    width: 100%;
-    justify-content: space-between;
-  }
-}
-
-@media (max-width: 640px) {
-  .container {
-    padding: 85px 16px 40px;
-  }
-
-  .title {
-    font-size: 1.75rem;
-  }
-
-  .nextAppointmentCard, .recentHistoryCard, .loyaltyCard, .preparationCard {
-    padding: 18px;
-    border-radius: 18px;
-  }
-
-  .actionButtonsRow {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .quickActionsGrid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-  }
-
-  .btnQuickAction {
-    padding: 10px 4px;
-    font-size: 0.78rem;
-    flex-direction: column;
-    gap: 4px;
-    text-align: center;
-    border-radius: 12px;
-  }
-
-  .heroPaymentBtn {
-    padding: 12px 16px;
-    font-size: 0.92rem;
-  }
-
-  .cardFooterLinks {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .footerLink {
-    padding: 10px 14px;
-    background: var(--color-background);
-    border-radius: var(--radius-md);
-    justify-content: center;
-  }
-
-  .infoRow {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .historyItem {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 14px;
-  }
-
-  .historyMain {
-    width: 100%;
-  }
-
-  .historyActions {
-    width: 100%;
-    justify-content: space-between;
-    border-top: 1px solid var(--color-border);
-    padding-top: 10px;
-    gap: 8px;
-  }
-
-  .btnSecondaryOutlinedSmall {
-    padding: 8px 14px;
-    font-size: 0.82rem;
-  }
-
-  .fabWhatsApp {
-    bottom: 20px;
-    right: 16px;
-    padding: 10px 18px;
-    font-size: 0.88rem;
-  }
-}
-
-/* Modals Ultra Modern */
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-  animation: modalBackdropFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.modalContent {
-  background: var(--color-surface);
-  border-radius: 24px;
-  padding: 24px 28px;
-  width: 100%;
-  max-width: 540px;
-  max-height: 85vh;
-  box-shadow: 
-    0 25px 50px -12px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(226, 232, 240, 0.8);
-  position: relative;
-  animation: modalContentSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  overflow-y: auto;
-}
-
-.modalAccentBar {
-  height: 4px;
-  width: 100%;
-  background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-accent) 50%, var(--color-primary-dark) 100%);
-  position: absolute;
-  top: 0;
-  left: 0;
-  border-top-left-radius: 24px;
-  border-top-right-radius: 24px;
-}
-
-.modalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: 14px;
-  padding-top: 4px;
-}
-
-.modalTitle {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-text-main);
-  margin: 0;
-}
-
-.modalClose {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.modalClose:hover {
-  background: var(--color-primary-light);
-  color: var(--color-primary-dark);
-}
-
-.modalBody {
-  font-size: 0.95rem;
-  color: var(--color-text-main);
-  line-height: 1.6;
-}
-
-@media (max-width: 640px) {
-  .modalOverlay {
-    padding: 16px;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .modalContent {
-    border-radius: 24px;
-    max-height: 85vh;
-    padding: 24px 20px;
-    width: 95%;
-    max-width: 480px;
-  }
-}
-
-.dropdownMenu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.12);
-  display: flex;
-  flex-direction: column;
-  min-width: 200px;
-  z-index: 10;
-  padding: 8px 0;
-  margin-top: 8px;
-}
-
-.dropdownItem {
-  padding: 10px 16px;
-  background: transparent;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: var(--color-text-main);
-  transition: background-color 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.dropdownItem:hover {
-  background: var(--color-primary-light);
-  color: var(--color-primary-dark);
-}
-
-.dropdownItemDanger {
-  color: #ff4d4f;
 }
 
 /* Status Badges Header */
@@ -1199,7 +258,7 @@
   gap: 5px;
 }
 
-/* Status Alert Banner (Lightweight & Sleek) */
+/* Status Alert Banners */
 .statusAlertConfirmed {
   background: linear-gradient(135deg, rgba(240, 253, 244, 0.95) 0%, rgba(220, 252, 231, 0.5) 100%);
   border: 1px solid rgba(34, 197, 94, 0.25);
@@ -1241,16 +300,16 @@
   display: flex;
   align-items: center;
   gap: 18px;
-  background: rgba(193, 99, 85, 0.04);
-  border: 1px solid var(--color-border);
+  background: rgba(217, 107, 82, 0.04);
+  border: 1px solid #F0E5DF;
   border-radius: var(--radius-md);
   padding: 16px;
   margin-bottom: 20px;
 }
 
 .heroDateBox {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: #FFFFFF;
+  border: 1px solid #F0E5DF;
   border-radius: 14px;
   padding: 10px 14px;
   display: flex;
@@ -1258,13 +317,13 @@
   align-items: center;
   justify-content: center;
   min-width: 76px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .heroDateMonth {
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--color-text-muted);
+  color: #71717A;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1272,7 +331,7 @@
 .heroDateDay {
   font-size: 2rem;
   font-weight: 800;
-  color: var(--color-primary);
+  color: #D96B52;
   line-height: 1;
   margin: 2px 0;
 }
@@ -1295,7 +354,7 @@
 .heroTimeTitle {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--color-text-main);
+  color: #18181B;
   margin: 0;
 }
 
@@ -1321,11 +380,11 @@
   gap: 5px;
   font-size: 0.82rem;
   font-weight: 600;
-  color: var(--color-text-muted);
-  background: var(--color-surface);
+  color: #71717A;
+  background: #FFFFFF;
   padding: 3px 10px;
   border-radius: 12px;
-  border: 1px solid var(--color-border);
+  border: 1px solid #F0E5DF;
 }
 
 /* Services Section Compact */
@@ -1337,7 +396,7 @@
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: #71717A;
   letter-spacing: 0.5px;
   margin-bottom: 10px;
 }
@@ -1353,15 +412,15 @@
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  background: var(--color-background);
+  background: #FAF7F5;
   border-radius: 14px;
-  border: 1px solid var(--color-border);
+  border: 1px solid #F0E5DF;
   transition: all 0.2s ease;
 }
 
 .serviceCompactRow:hover {
-  border-color: var(--color-primary-light);
-  background: var(--color-surface);
+  border-color: #D96B52;
+  background: #FFFFFF;
 }
 
 .serviceAvatarWrapper {
@@ -1372,7 +431,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-secondary);
+  background: #FFF5F1;
   flex-shrink: 0;
 }
 
@@ -1387,12 +446,16 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .serviceCompactTitle {
   font-size: 0.92rem;
   font-weight: 600;
-  color: var(--color-text-main);
+  color: #18181B;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .serviceCompactMeta {
@@ -1400,7 +463,7 @@
   align-items: center;
   gap: 6px;
   font-size: 0.8rem;
-  color: var(--color-text-muted);
+  color: #71717A;
 }
 
 .proSmallPhoto {
@@ -1412,7 +475,7 @@
 
 .metaDot {
   font-size: 0.7rem;
-  color: var(--color-text-muted);
+  color: #71717A;
 }
 
 /* Location Bar Compact */
@@ -1422,9 +485,9 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  background: var(--color-background);
+  background: #FAF7F5;
   border-radius: 12px;
-  border: 1px solid var(--color-border);
+  border: 1px solid #F0E5DF;
   margin-bottom: 10px;
 }
 
@@ -1436,13 +499,13 @@
 }
 
 .locationPinIcon {
-  color: var(--color-primary);
+  color: #D96B52;
   flex-shrink: 0;
 }
 
 .locationAddressText {
   font-size: 0.85rem;
-  color: var(--color-text-main);
+  color: #18181B;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1451,7 +514,7 @@
 .routeLinkCompact {
   font-size: 0.82rem;
   font-weight: 600;
-  color: var(--color-primary);
+  color: #D96B52;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1462,14 +525,682 @@
   text-decoration: underline;
 }
 
-/* Arrive Tip Compact */
 .arriveTipCompact {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 0.82rem;
-  color: var(--color-text-muted);
+  color: #71717A;
   margin-bottom: 20px;
   padding-left: 4px;
 }
 
+/* Modern Action Hub */
+.actionHub {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px dashed #F0E5DF;
+  padding-top: 18px;
+}
+
+.heroPaymentBtn {
+  width: 100%;
+  background: linear-gradient(135deg, #D96B52 0%, #C85A48 100%);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 14px;
+  padding: 14px 20px;
+  font-weight: 600;
+  font-size: 0.98rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(217, 107, 82, 0.28);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.heroPaymentLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heroPaymentRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.quickActionsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.btnQuickAction {
+  background: #FAF7F5;
+  color: #18181B;
+  border: 1px solid #F0E5DF;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  white-space: nowrap;
+}
+
+.btnQuickAction:hover {
+  background: #FFF5F1;
+  border-color: #D96B52;
+  color: #C85A48;
+}
+
+.quickActionIcon {
+  color: #D96B52;
+  flex-shrink: 0;
+}
+
+.btnQuickActionDanger:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #DC2626;
+}
+
+.quickActionIconDanger {
+  color: #EF4444;
+  flex-shrink: 0;
+}
+
+/* Right Column - Loyalty Card Styling (Image 2) */
+.loyaltyCard {
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.loyaltyHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.loyaltyHeaderIconCircle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #FFF3ED;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.loyaltyHeaderText {
+  display: flex;
+  flex-direction: column;
+}
+
+.loyaltyTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #18181B;
+  margin: 0;
+}
+
+.loyaltySubtitle {
+  font-size: 0.85rem;
+  color: #71717A;
+  display: block;
+  margin-top: 2px;
+}
+
+/* Horizontal 1-5 Track connected by a dashed line */
+.loyaltyProgressTrack {
+  position: relative;
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin: 24px 0 24px;
+  padding: 0 4px;
+  width: 100%;
+}
+
+.dashedConnectLine {
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  right: 20px;
+  height: 0;
+  border-top: 2px dashed #F0E5DF;
+  transform: translateY(-50%);
+  z-index: 0;
+}
+
+.loyaltyStepCircle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 1.5px solid #F0E5DF;
+  color: #3F3F46;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.loyaltyStepFilled {
+  background: #FFF5F1;
+  border-color: #D96B52;
+  color: #D96B52;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(217, 107, 82, 0.15);
+}
+
+.loyaltyCount {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #18181B;
+  margin-bottom: 4px;
+}
+
+.loyaltyDesc {
+  font-size: 0.88rem;
+  color: #71717A;
+  line-height: 1.4;
+}
+
+.loyaltyPrizeText {
+  color: #C85A48;
+  font-weight: 700;
+}
+
+.loyaltyFooterRow {
+  margin-top: 18px;
+}
+
+.loyaltyRulesLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #C85A48;
+  font-weight: 600;
+  font-size: 0.88rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+
+.loyaltyRulesLink:hover {
+  color: #A84232;
+}
+
+/* Right Column - Recent History Card Styling (Image 2) */
+.recentHistoryCard {
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.historyTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.historyIconCircle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #FFF3ED;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.historyCardTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #27272A;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.viewAllLink {
+  color: #C85A48;
+  font-size: 0.88rem;
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.viewAllLink:hover {
+  color: #A84232;
+}
+
+.emptyHistoryState {
+  text-align: center;
+  padding: 24px 0 12px;
+}
+
+.emptyHistoryCircle {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  background: #FFF5F1;
+  border-radius: 50%;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.historySparkleTR {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: 0.9rem;
+}
+
+.emptyHistoryText {
+  color: #71717A;
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+/* History Items List (when history items exist) */
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  width: 100%;
+}
+
+.historyItem {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 12px 14px !important;
+  border-radius: 16px !important;
+  background: #FAF7F5 !important;
+  border: 1px solid #F0E5DF !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.historyMain {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+  width: auto !important;
+}
+
+.historyIconWrapper {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.iconConfirmedWrapper {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+}
+
+.iconPendingWrapper {
+  background-color: #FFF3E0;
+  color: #E65100;
+}
+
+.iconCompletedWrapper {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+}
+
+.iconCanceledWrapper {
+  background-color: #FFEBEE;
+  color: #C62828;
+}
+
+.iconRescheduledWrapper {
+  background-color: #E3F2FD;
+  color: #1565C0;
+}
+
+.historyDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.historyServiceName {
+  font-weight: 700;
+  color: #18181B;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+  display: block;
+  width: 100%;
+}
+
+.historyServicesBadgeList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+  width: 100%;
+}
+
+.historyServiceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #18181B;
+  background: #FFFFFF;
+  border: 1px solid #F0E5DF;
+  padding: 3px 9px;
+  border-radius: 8px;
+  line-height: 1.3;
+  width: fit-content;
+}
+
+.historyChipSparkle {
+  color: #D96B52;
+  flex-shrink: 0;
+}
+
+.historyInfo {
+  font-size: 0.8rem;
+  color: #71717A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.historySubMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.historyPrice {
+  font-weight: 700;
+  color: #C85A48;
+  font-size: 0.85rem;
+}
+
+.paymentPaid {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.paymentOpen {
+  background-color: rgba(244, 162, 97, 0.15);
+  color: #E65100;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.historyActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.statusConfirmed {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statusPending {
+  background-color: rgba(244, 162, 97, 0.15);
+  color: #E67E22;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statusCompleted {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statusCanceled {
+  background-color: #FFEBEE;
+  color: #C62828;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statusRescheduled {
+  background-color: #E3F2FD;
+  color: #1565C0;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.btnSecondaryOutlinedSmall {
+  background-color: transparent;
+  color: #C85A48;
+  border: 1px solid #F0E5DF;
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-weight: 600;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btnSecondaryOutlinedSmall:hover {
+  background-color: #FFF5F1;
+  border-color: #D96B52;
+}
+
+/* Modals */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  animation: modalBackdropFadeIn 0.25s ease forwards;
+}
+
+.modalContent {
+  background: #FFFFFF;
+  border-radius: 24px;
+  padding: 24px 28px;
+  width: 100%;
+  max-width: 540px;
+  max-height: 85vh;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  position: relative;
+  overflow-y: auto;
+}
+
+.modalAccentBar {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, #D96B52 0%, #F4A261 50%, #C85A48 100%);
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #F0E5DF;
+  padding-bottom: 14px;
+  padding-top: 4px;
+}
+
+.modalTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #18181B;
+  margin: 0;
+}
+
+.modalClose {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #FAF7F5;
+  border: 1px solid #F0E5DF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #71717A;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.modalClose:hover {
+  background: #FFF5F1;
+  color: #C85A48;
+}
+
+.modalBody {
+  font-size: 0.95rem;
+  color: #18181B;
+  line-height: 1.6;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 960px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 95px 16px 40px;
+  }
+
+  .title {
+    font-size: 1.9rem;
+  }
+
+  .nextAppointmentCard, .recentHistoryCard, .loyaltyCard, .emptyNextCard {
+    padding: 20px 16px;
+    border-radius: 20px;
+  }
+
+  .quickActionsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .btnQuickAction {
+    padding: 10px 4px;
+    font-size: 0.78rem;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+    border-radius: 12px;
+  }
+
+  .heroPaymentBtn {
+    padding: 12px 16px;
+    font-size: 0.92rem;
+  }
+
+  .historyItem {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .historyActions {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px dashed #F0E5DF;
+    padding-top: 8px;
+  }
+}

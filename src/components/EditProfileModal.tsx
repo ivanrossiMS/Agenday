@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, ChangeEvent, FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { User as UserIcon, Mail, Lock, Calendar, Camera, X, AlertCircle, Check, Eye, EyeOff, MessageSquare } from "lucide-react";
 import styles from "./EditProfileModal.module.css";
 
@@ -38,6 +39,20 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (user) {
@@ -52,7 +67,7 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
     }
   }, [user, isOpen]);
 
-  if (!isOpen || !user) return null;
+  if (!isOpen || !user || !mounted) return null;
 
   const handlePhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -106,7 +121,7 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
     return val;
   };
 
-  return (
+  return createPortal(
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modalContainer} onClick={(e) => e.stopPropagation()}>
         <div className={styles.accentBar}></div>
@@ -261,6 +276,7 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

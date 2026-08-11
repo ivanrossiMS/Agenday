@@ -50,8 +50,10 @@ export default function Header() {
     <header className={`${styles.header} ${scrolled ? styles.scrolled : ""}`}>
       {/* Left: Logo */}
       <Link href="/" className={styles.logo}>
-        <div className={styles.logoCircle}>N</div>
-        <span className={styles.logoText}>Agenday</span>
+        <div className={styles.logoCircle}>FM</div>
+        <span className={styles.logoText}>
+          Fran <span className={styles.logoTextHighlight}>Marinho</span>
+        </span>
       </Link>
       
       {/* Center: Navigation Links */}
@@ -77,9 +79,11 @@ export default function Header() {
               {user.photo ? (
                 <img src={user.photo} alt="Avatar" className={styles.avatar} style={{ objectFit: 'cover' }} />
               ) : (
-                <img src="https://i.pravatar.cc/150?u=marina" alt="Avatar" className={styles.avatar} style={{ objectFit: 'cover' }} />
+                <div className={styles.avatarIconWrapper}>
+                  <User size={16} />
+                </div>
               )}
-              <span className={styles.userName}>{getFirstName(user.name) || "Marina"}</span>
+              <span className={styles.userName}>{getFirstName(user.name) || "Ivan"}</span>
               <ChevronDown size={14} className={styles.userChevron} />
             </div>
 
@@ -150,8 +154,10 @@ export default function Header() {
           <div className={styles.mobileDrawerContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.mobileDrawerHeader}>
               <div className={styles.logo}>
-                <div className={styles.logoCircle}>N</div>
-                <span className={styles.logoText}>Agenday</span>
+                <div className={styles.logoCircle}>FM</div>
+                <span className={styles.logoText}>
+                  Fran <span className={styles.logoTextHighlight}>Marinho</span>
+                </span>
               </div>
               <button className={styles.closeDrawerBtn} onClick={() => setMobileMenuOpen(false)}>
                 <X size={20} />

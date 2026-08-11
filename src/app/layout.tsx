@@ -15,8 +15,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
 
 export const metadata: Metadata = {
-  title: "Agenday | Agendamento de Beleza Premium",
-  description: "Agende seus serviços de beleza com facilidade, conforto e luxo.",
+  title: "Fran Marinho | Studio de Beleza & Estética",
+  description: "Agende seus serviços de beleza com facilidade, conforto e luxo com Fran Marinho.",
 };
 
 export const viewport = {

@@ -284,12 +284,43 @@ export default function DashboardPage() {
     }
   };
 
+  const renderHistoryServices = (serviceStr: string) => {
+    const rawServices = serviceStr ? serviceStr.split(/\s*\+\s*/) : [];
+    if (rawServices.length <= 1) {
+      return <span className={styles.historyServiceName}>{serviceStr}</span>;
+    }
+    return (
+      <div className={styles.historyServicesBadgeList}>
+        {rawServices.map((svcName, idx) => (
+          <span key={idx} className={styles.historyServiceChip}>
+            <Sparkles size={11} className={styles.historyChipSparkle} />
+            {svcName}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   if (!user) return <div style={{ padding: "120px", textAlign: "center" }}>Verificando credenciais...</div>;
 
   return (
     <div className={styles.container}>
+      {/* Background Atmosphere & Decor (Image 2) */}
+      <div className={styles.bgGlowRight} />
+      
+      <svg className={styles.botanicalDecor} viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M140 10C160 50 200 70 230 100C200 130 160 150 140 190C120 150 80 130 50 100C80 70 120 50 140 10Z" stroke="#E8927C" strokeWidth="1" strokeOpacity="0.25" />
+        <path d="M180 40C190 70 210 90 230 110C210 130 190 150 180 180" stroke="#E8927C" strokeWidth="0.8" strokeOpacity="0.2" fill="none" />
+        <path d="M100 60C110 80 130 100 150 120" stroke="#E8927C" strokeWidth="0.8" strokeOpacity="0.2" fill="none" />
+      </svg>
+
       <div className={styles.pageHeader}>
-        <h1 className={styles.title}>Olá, {user.name?.split(' ')[0] || "Cliente"}</h1>
+        <div className={styles.titleSparkleContainer}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D96B52" strokeWidth="1.5">
+            <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" fill="#F4A261" fillOpacity="0.4" />
+          </svg>
+        </div>
+        <h1 className={styles.title}>Olá, {user.name?.split(' ')[0] || "Ivan"}</h1>
         <p className={styles.subtitle}>Tudo pronto para o seu próximo cuidado?</p>
       </div>
 
@@ -443,19 +474,51 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-            <div className={styles.nextAppointmentCard} style={{ textAlign: "center", padding: "40px 24px" }}>
-              <CalendarDays size={48} color="var(--color-text-muted)" style={{ margin: "0 auto 16px" }} />
-              <h2 className={styles.cardTitle} style={{ marginBottom: "8px" }}>Nenhum Agendamento Futuro</h2>
-              <p style={{ color: "var(--color-text-muted)", fontSize: "0.95rem", marginBottom: "24px" }}>
-                Você não possui horários agendados no momento.
-              </p>
+            /* Empty State matching Image 2 perfectly */
+            <div className={styles.emptyNextCard}>
+              <div className={styles.emptyCalendarCircleWrapper}>
+                <div className={styles.emptyCalendarCircle}>
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#D96B52" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="3" ry="3"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                    <circle cx="8" cy="14" r="1" fill="#D96B52"></circle>
+                    <circle cx="12" cy="14" r="1" fill="#D96B52"></circle>
+                    <circle cx="16" cy="14" r="1" fill="#D96B52"></circle>
+                    <circle cx="8" cy="18" r="1" fill="#D96B52"></circle>
+                    <circle cx="12" cy="18" r="1" fill="#D96B52"></circle>
+                    <circle cx="16" cy="18" r="1" fill="#D96B52"></circle>
+                  </svg>
+                </div>
+                <span className={styles.sparkleTL}>✦</span>
+                <span className={styles.sparkleTR}>✧</span>
+                <span className={styles.sparkleBL}>✦</span>
+              </div>
+
+              <h2 className={styles.emptyCardTitle}>NENHUM AGENDAMENTO FUTURO</h2>
+              <p className={styles.emptyCardSub}>Você não possui horários agendados no momento.</p>
+
               <button 
-                className={styles.btnPrimaryFilled}
+                className={styles.btnAgendarNovo}
                 onClick={() => router.push("/agendar")}
-                style={{ width: "auto", margin: "0 auto", padding: "12px 28px" }}
               >
-                Agendar Novo Serviço
+                <Calendar size={18} />
+                <span>Agendar Novo Serviço</span>
               </button>
+
+              <div className={styles.sparkleDivider}>
+                <span className={styles.sparkleDividerLine} />
+                <div className={styles.sparkleDividerIcon}>✦</div>
+                <span className={styles.sparkleDividerLine} />
+              </div>
+
+              <div className={styles.emptyCardTip}>
+                <div className={styles.tipIconCircle}>
+                  ✦
+                </div>
+                <span>Escolha o serviço ideal para você e cuide-se.</span>
+              </div>
             </div>
           )}
         </div>
@@ -465,22 +528,22 @@ export default function DashboardPage() {
           {/* Loyalty Program Card */}
           <div className={styles.loyaltyCard}>
             <div className={styles.loyaltyHeader}>
-              <Star size={24} color="var(--color-accent, #E67E22)" fill="var(--color-accent, #E67E22)" />
-              <div>
+              <div className={styles.loyaltyHeaderIconCircle}>
+                <Star size={20} fill="#E07A5F" color="#E07A5F" />
+              </div>
+              <div className={styles.loyaltyHeaderText}>
                 <h3 className={styles.loyaltyTitle}>Seu progresso</h3>
                 <span className={styles.loyaltySubtitle}>Programa de fidelidade</span>
               </div>
             </div>
             
-            <div className={styles.loyaltyStampsGrid}>
+            {/* 5-step track with horizontal dashed line */}
+            <div className={styles.loyaltyProgressTrack}>
+              <div className={styles.dashedConnectLine} />
               {Array.from({ length: loyaltySettings?.stampsRequired || 5 }).map((_, i) => {
                 const isFilled = i < stats.stamps;
-                return isFilled ? (
-                  <div key={i} className={styles.loyaltyStampFilled} title={`Atendimento ${i + 1} concluído`}>
-                    <Star size={16} fill="currentColor" />
-                  </div>
-                ) : (
-                  <div key={i} className={styles.loyaltyStampCircle} title={`Atendimento ${i + 1}`}>
+                return (
+                  <div key={i} className={`${styles.loyaltyStepCircle} ${isFilled ? styles.loyaltyStepFilled : ''}`}>
                     {i + 1}
                   </div>
                 );
@@ -491,7 +554,7 @@ export default function DashboardPage() {
               {stats.stamps} de {loyaltySettings?.stampsRequired || 5} atendimentos
             </p>
             <p className={styles.loyaltyDesc}>
-              Complete {loyaltySettings?.stampsRequired || 5} atendimentos e ganhe <strong>{loyaltySettings?.prizeName || "1 Hidratação Grátis"}</strong>.
+              Complete {loyaltySettings?.stampsRequired || 5} atendimentos e ganhe <strong className={styles.loyaltyPrizeText}>{loyaltySettings?.prizeName || "1 Hidratação Grátis."}</strong>
             </p>
 
             {stats.availablePrizes > 0 ? (
@@ -500,9 +563,9 @@ export default function DashboardPage() {
                 onClick={handleClaim}
                 style={{
                   width: "100%",
-                  marginTop: "12px",
+                  marginTop: "14px",
                   padding: "12px",
-                  borderRadius: "8px",
+                  borderRadius: "12px",
                   background: "linear-gradient(135deg, #10B981, #059669)",
                   color: "#FFF",
                   fontWeight: 600,
@@ -518,58 +581,80 @@ export default function DashboardPage() {
                 <Gift size={18} /> Resgatar {loyaltySettings?.prizeName} ({stats.availablePrizes})
               </button>
             ) : (
-              <button 
-                type="button" 
-                className={styles.loyaltyRulesLink}
-                onClick={() => alert(`Regras do Programa de Fidelidade:\n\n1. A cada serviço concluído você acumula 1 carimbo.\n2. Ao acumular ${loyaltySettings?.stampsRequired || 5} carimbos, você ganha: ${loyaltySettings?.prizeName || "1 Hidratação Grátis"}.\n3. Os carimbos têm validade de ${loyaltySettings?.expirationDays || 90} dias.`)}
-                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-              >
-                Ver regras
-              </button>
+              <div className={styles.loyaltyFooterRow}>
+                <button 
+                  type="button" 
+                  className={styles.loyaltyRulesLink}
+                  onClick={() => alert(`Regras do Programa de Fidelidade:\n\n1. A cada serviço concluído você acumula 1 carimbo.\n2. Ao acumular ${loyaltySettings?.stampsRequired || 5} carimbos, você ganha: ${loyaltySettings?.prizeName || "1 Hidratação Grátis"}.\n3. Os carimbos têm validade de ${loyaltySettings?.expirationDays || 90} dias.`)}
+                >
+                  <span>Ver regras</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
             )}
           </div>
 
           {/* Recent History Card */}
           <div className={styles.recentHistoryCard}>
             <div className={styles.cardHeaderFlex}>
-              <h2 className={styles.cardTitle} style={{ margin: 0 }}><RotateCcw size={20} /> Histórico recente</h2>
-              <button className={styles.viewAllLink} onClick={() => setShowHistoryModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Ver todos &gt;</button>
+              <div className={styles.historyTitleGroup}>
+                <div className={styles.historyIconCircle}>
+                  <RotateCcw size={18} color="#D96B52" />
+                </div>
+                <h2 className={styles.historyCardTitle}>HISTÓRICO RECENTE</h2>
+              </div>
+              <button className={styles.viewAllLink} onClick={() => setShowHistoryModal(true)}>
+                Ver todos &gt;
+              </button>
             </div>
             
-            {historyAppts.length === 0 && (
-              <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginTop: "16px" }}>Nenhum histórico recente.</p>
-            )}
-
-            {historyAppts.slice(0, 3).map((appt) => {
-              const statusInfo = getStatusDisplay(appt.status);
-              const paymentInfo = getPaymentBadge(appt.paymentStatus);
-              return (
-                <div key={appt.id} className={styles.historyItem}>
-                  <div className={styles.historyMain}>
-                    <div className={`${styles.historyIconWrapper} ${statusInfo.iconWrapperClass}`}>
-                      {statusInfo.icon}
-                    </div>
-                    <div className={styles.historyDetails}>
-                      <span className={styles.historyServiceName}>{appt.service}</span>
-                      <span className={styles.historyInfo}>{appt.date} • {appt.time}</span>
-                      <div className={styles.historySubMeta}>
-                        <span className={styles.historyPrice}>R$ {appt.price ? appt.price.toFixed(2).replace('.', ',') : '0,00'}</span>
-                        <span className={paymentInfo.class}>{paymentInfo.label}</span>
+            {historyAppts.length === 0 ? (
+              <div className={styles.emptyHistoryState}>
+                <div className={styles.emptyHistoryCircle}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D96B52" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                    <path d="M9 12h6"></path>
+                    <path d="M9 16h4"></path>
+                  </svg>
+                  <span className={styles.historySparkleTR}>✨</span>
+                </div>
+                <p className={styles.emptyHistoryText}>Nenhum histórico recente.</p>
+              </div>
+            ) : (
+              <div className={styles.historyList}>
+                {historyAppts.slice(0, 3).map((appt) => {
+                  const statusInfo = getStatusDisplay(appt.status);
+                  const paymentInfo = getPaymentBadge(appt.paymentStatus);
+                  return (
+                    <div key={appt.id} className={styles.historyItem}>
+                      <div className={styles.historyMain}>
+                        <div className={`${styles.historyIconWrapper} ${statusInfo.iconWrapperClass}`}>
+                          {statusInfo.icon}
+                        </div>
+                        <div className={styles.historyDetails}>
+                          {renderHistoryServices(appt.service)}
+                          <span className={styles.historyInfo}>{appt.date} • {appt.time}</span>
+                          <div className={styles.historySubMeta}>
+                            <span className={styles.historyPrice}>R$ {appt.price ? appt.price.toFixed(2).replace('.', ',') : '0,00'}</span>
+                            <span className={paymentInfo.class}>{paymentInfo.label}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className={styles.historyActions}>
+                        <span className={statusInfo.class}>{statusInfo.label}</span>
+                        <button 
+                          className={styles.btnSecondaryOutlinedSmall} 
+                          onClick={() => handleBookAgain(appt.service)}
+                        >
+                          Agendar novamente
+                        </button>
                       </div>
                     </div>
-                  </div>
-                  <div className={styles.historyActions}>
-                    <span className={statusInfo.class}>{statusInfo.label}</span>
-                    <button 
-                      className={styles.btnSecondaryOutlinedSmall} 
-                      onClick={() => handleBookAgain(appt.service)}
-                    >
-                      Agendar novamente
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -639,7 +724,7 @@ export default function DashboardPage() {
                           {statusInfo.icon}
                         </div>
                         <div className={styles.historyDetails}>
-                          <span className={styles.historyServiceName}>{appt.service}</span>
+                          {renderHistoryServices(appt.service)}
                           <span className={styles.historyInfo}>{appt.date} • {appt.time}</span>
                           <div className={styles.historySubMeta}>
                             <span className={styles.historyPrice}>R$ {appt.price ? appt.price.toFixed(2).replace('.', ',') : '0,00'}</span>

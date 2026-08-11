@@ -25,7 +25,7 @@ type SiteSettingsContextType = {
 
 const defaultSettings: SiteSettings = {
   heroTitle: "A sua beleza tratada como uma verdadeira joia",
-  heroSubtitle: "No Agenday, cada detalhe é pensado para oferecer a você uma experiência de beleza inesquecível.",
+  heroSubtitle: "Com Fran Marinho, cada detalhe é pensado para oferecer a você uma experiência de beleza inesquecível.",
   heroImage: "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2000&auto=format&fit=crop",
   aboutTitle: "Experiência e Exclusividade",
   aboutText: "Nosso espaço foi desenhado para ser o seu refúgio urbano. Muito mais do que um salão, somos especialistas em elevar a autoestima através de técnicas modernas e atendimento personalizado. Trabalhamos com os melhores produtos do mercado mundial para garantir resultados impecáveis e duradouros.",
@@ -33,7 +33,7 @@ const defaultSettings: SiteSettings = {
   businessStart: "09:00",
   businessEnd: "18:00",
   whatsappNumber: "5511999999999",
-  salonAddress: "Agenday Beauty • Av. Afonso Pena, 1234",
+  salonAddress: "Fran Marinho Beauty Studio • Av. Afonso Pena, 1234",
   mapsLink: "https://maps.google.com",
   preparationSteps: [
     "Venha sem maquiagem nos olhos",
