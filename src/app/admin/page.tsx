@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { useAuth } from "@/context/AuthContext";
 import { useServices, ServiceItem } from "@/context/ServicesContext";
 import { useSiteSettings, SiteSettings } from "@/context/SiteSettingsContext";
@@ -276,7 +278,7 @@ export default function AdminDashboard() {
 
     if (newStatus === 'confirmed') {
       const clientObj = clients.find(c => (c.email && appt.clientEmail && c.email.toLowerCase() === appt.clientEmail.toLowerCase()) || c.name === appt.clientName);
-      const rawPhone = clientObj?.phone || appt.clientPhone || appt.phone || "";
+      const rawPhone = clientObj?.phone || (appt as any).clientPhone || (appt as any).phone || "";
       const cleanPhone = rawPhone.replace(/\D/g, "");
 
       let paymentText = "Pagar no Salão";
@@ -305,6 +307,101 @@ export default function AdminDashboard() {
         const encodedMsg = encodeURIComponent(message);
         window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
       }
+    }
+  };
+
+  // Receipt PDF State & Functions
+  const [receiptAppt, setReceiptAppt] = useState<Appointment | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const handleDownloadReceiptPdf = async (appt: Appointment) => {
+    const receiptElem = document.getElementById("receipt-print-container");
+    if (!receiptElem) return;
+
+    setIsGeneratingPdf(true);
+    try {
+      const canvas = await html2canvas(receiptElem, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Recibo_FranMarinho_${(appt.clientName || 'Cliente').replace(/\s+/g, '_')}_${appt.id}.pdf`);
+    } catch (err) {
+      console.error("Error generating PDF receipt:", err);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleShareReceiptWhatsApp = async (appt: Appointment) => {
+    const receiptElem = document.getElementById("receipt-print-container");
+    if (!receiptElem) return;
+
+    setIsGeneratingPdf(true);
+    try {
+      const canvas = await html2canvas(receiptElem, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+
+      const pdfBlob = pdf.output("blob");
+      const clientObj = clients.find(c => (c.email && appt.clientEmail && c.email.toLowerCase() === appt.clientEmail.toLowerCase()) || c.name === appt.clientName);
+      const rawPhone = clientObj?.phone || (appt as any).clientPhone || (appt as any).phone || "";
+      const cleanPhone = rawPhone.replace(/\D/g, "");
+      const phoneWithDdi = cleanPhone ? (cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone) : "";
+
+      const fileName = `Recibo_FranMarinho_${appt.id}.pdf`;
+      const file = new File([pdfBlob], fileName, { type: "application/pdf" });
+
+      if (typeof navigator !== "undefined" && (navigator as any).canShare && (navigator as any).canShare({ files: [file] })) {
+        await (navigator as any).share({
+          files: [file],
+          title: "Recibo de Pagamento - Fran Marinho Studio de Beleza",
+          text: `Olá ${appt.clientName || 'Cliente'}! Segue o seu Recibo Oficial de Pagamento.`
+        });
+      } else {
+        pdf.save(fileName);
+
+        const msg = `Olá, ${appt.clientName || 'Cliente'}! 📄✨\n\nAcabei de gerar o seu *Recibo Oficial de Pagamento em PDF* referente ao atendimento do dia *${appt.date}* (${appt.service}).\n\nO PDF do recibo foi baixado e você também pode armazená-lo para seus comprovantes!`;
+        const encodedMsg = encodeURIComponent(msg);
+
+        if (phoneWithDdi) {
+          window.open(`https://wa.me/${phoneWithDdi}?text=${encodedMsg}`, '_blank');
+        } else {
+          window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
+        }
+      }
+    } catch (err) {
+      console.error("Error sharing PDF receipt:", err);
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -4190,6 +4287,34 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
+                  {/* Botão Gerar & Enviar Recibo PDF */}
+                  <div style={{ marginTop: '14px', borderTop: '1px dashed #e2e8f0', paddingTop: '14px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setReceiptAppt(selectedDetailAppt)}
+                      style={{
+                        width: "100%",
+                        background: "linear-gradient(135deg, #a85145 0%, #8c3f35 100%)",
+                        color: "#ffffff",
+                        border: "none",
+                        padding: "12px 18px",
+                        borderRadius: "14px",
+                        fontWeight: 700,
+                        fontSize: "0.92rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        cursor: "pointer",
+                        boxShadow: "0 4px 14px rgba(168, 81, 69, 0.3)",
+                        transition: "all 0.2s ease"
+                      }}
+                    >
+                      <FileText size={18} />
+                      <span>🧾 Gerar & Enviar Recibo (PDF)</span>
+                    </button>
+                  </div>
+
                   {/* Action Buttons Grid */}
                   <div className={styles.detailActionsContainer}>
                     <div className={styles.detailSectionTitle}>Ações Rápidas</div>
@@ -4484,6 +4609,252 @@ export default function AdminDashboard() {
                 }}
               >
                 {confirmModal.confirmText || "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ULTRA MODERN RECEIPT MODAL */}
+      {receiptAppt && (
+        <div 
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 999999,
+            backgroundColor: "rgba(15, 23, 42, 0.75)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            overflowY: "auto"
+          }}
+          onClick={() => setReceiptAppt(null)}
+        >
+          <div 
+            style={{
+              background: "#ffffff",
+              width: "100%",
+              maxWidth: "680px",
+              maxHeight: "90vh",
+              borderRadius: "24px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
+              padding: "24px",
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+              overflowY: "auto"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Top Controls Bar */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e2e8f0", paddingBottom: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <FileText size={22} color="#a85145" />
+                <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>
+                  Recibo Oficial de Pagamento
+                </h3>
+              </div>
+              <button 
+                onClick={() => setReceiptAppt(null)}
+                style={{ background: "#f1f5f9", border: "none", width: "36px", height: "36px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                <X size={18} color="#64748b" />
+              </button>
+            </div>
+
+            {/* Printable Receipt Container (A4 Printable Component) */}
+            <div 
+              id="receipt-print-container"
+              style={{
+                background: "#ffffff",
+                borderRadius: "16px",
+                border: "1px solid #cbd5e1",
+                padding: "32px 28px",
+                fontFamily: "var(--font-inter, sans-serif)",
+                color: "#1e293b",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.04)"
+              }}
+            >
+              {/* Receipt Header Banner */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #a85145", paddingBottom: "20px", marginBottom: "20px" }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#a85145", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "1rem" }}>
+                      FM
+                    </div>
+                    <div>
+                      <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "#a85145", margin: 0, lineHeight: 1.1 }}>
+                        Fran Marinho
+                      </h2>
+                      <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Studio de Beleza
+                      </span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: "0.8rem", color: "#64748b", margin: "6px 0 0 0", lineHeight: 1.4 }}>
+                    Rua Abrão Júlio Rahe, 1801 • Campo Grande/MS<br />
+                    WhatsApp: (67) 99266-6464
+                  </p>
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ background: "#fff5f0", border: "1px solid #fed7aa", color: "#a85145", padding: "6px 14px", borderRadius: "10px", fontSize: "0.78rem", fontWeight: 800, display: "inline-block", marginBottom: "8px" }}>
+                    COMPROVANTE DE PAGAMENTO
+                  </div>
+                  <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0f172a" }}>
+                    Nº #{receiptAppt.id}
+                  </div>
+                  <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "2px" }}>
+                    Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Verified Stamp Banner */}
+              <div style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "1px solid #86efac", borderRadius: "12px", padding: "14px 18px", display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
+                <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#16a34a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <CheckCircle2 size={22} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.95rem", fontWeight: 800, color: "#15803d" }}>
+                    ✓ PAGAMENTO QUITADO E CONFIRMADO
+                  </div>
+                  <div style={{ fontSize: "0.78rem", color: "#166534" }}>
+                    Valor devidamente recebido e registrado em nosso sistema.
+                  </div>
+                </div>
+              </div>
+
+              {/* Info Grid: Client & Payment Details */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
+                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px 16px" }}>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+                    DADOS DO CLIENTE
+                  </span>
+                  <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a" }}>
+                    {receiptAppt.clientName || "Cliente"}
+                  </div>
+                  <div style={{ fontSize: "0.82rem", color: "#475569", marginTop: "2px" }}>
+                    📧 {receiptAppt.clientEmail || "Não informado"}
+                  </div>
+                </div>
+
+                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px 16px" }}>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+                    FORMA DE PAGAMENTO
+                  </span>
+                  <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a" }}>
+                    {receiptAppt.paymentStatus === "paid_pix" ? "⚡ Pix Automático (Mercado Pago)" : receiptAppt.paymentStatus === "paid_credit" ? "💳 Cartão de Crédito" : "💰 Pago no Salão"}
+                  </div>
+                  {receiptAppt.mpPaymentId && (
+                    <div style={{ fontSize: "0.78rem", color: "#475569", marginTop: "2px" }}>
+                      ID MP: {receiptAppt.mpPaymentId}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Services Table */}
+              <div style={{ marginBottom: "24px" }}>
+                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
+                  DISCRIMINAÇÃO DOS SERVIÇOS
+                </span>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
+                  <thead>
+                    <tr style={{ background: "#f1f5f9", textAlign: "left", color: "#475569", fontWeight: 700 }}>
+                      <th style={{ padding: "10px 12px", borderRadius: "8px 0 0 8px" }}>Descrição do Serviço</th>
+                      <th style={{ padding: "10px 12px" }}>Data & Horário</th>
+                      <th style={{ padding: "10px 12px", textAlign: "right", borderRadius: "0 8px 8px 0" }}>Valor Liquidado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "12px", fontWeight: 600, color: "#0f172a" }}>{receiptAppt.service}</td>
+                      <td style={{ padding: "12px", color: "#475569" }}>{receiptAppt.date} às {receiptAppt.time}</td>
+                      <td style={{ padding: "12px", textAlign: "right", fontWeight: 700, color: "#0f172a" }}>R$ {Number(receiptAppt.price || 0).toFixed(2).replace('.', ',')}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Total Box & Terms */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff5f0", border: "1.5px solid #fed7aa", borderRadius: "14px", padding: "16px 20px" }}>
+                <div>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#a85145", textTransform: "uppercase", display: "block" }}>
+                    TOTAL PAGO E LIQUIDADO
+                  </span>
+                  <span style={{ fontSize: "0.78rem", color: "#78350f" }}>
+                    Impostos e taxas inclusos
+                  </span>
+                </div>
+                <div style={{ fontSize: "1.6rem", fontWeight: 800, color: "#a85145" }}>
+                  R$ {Number(receiptAppt.price || 0).toFixed(2).replace('.', ',')}
+                </div>
+              </div>
+
+              {/* Legal Note & Signature */}
+              <div style={{ marginTop: "24px", borderTop: "1px solid #f1f5f9", paddingTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                <p style={{ fontSize: "0.72rem", color: "#94a3b8", margin: 0, maxWidth: "340px", lineHeight: 1.3 }}>
+                  Declaro para os devidos fins que recebi a quantia descrita neste comprovante referente aos serviços de beleza agendados e prestados.
+                </p>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ width: "160px", borderBottom: "1px solid #cbd5e1", marginBottom: "4px" }} />
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#475569" }}>
+                    Fran Marinho Studio
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Bottom Actions */}
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", paddingTop: "8px" }}>
+              <button
+                type="button"
+                onClick={() => handleDownloadReceiptPdf(receiptAppt)}
+                disabled={isGeneratingPdf}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#334155",
+                  border: "1px solid #cbd5e1",
+                  padding: "12px 20px",
+                  borderRadius: "14px",
+                  fontWeight: 700,
+                  fontSize: "0.92rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px"
+                }}
+              >
+                <FileText size={18} />
+                <span>{isGeneratingPdf ? "Gerando PDF..." : "Baixar PDF"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleShareReceiptWhatsApp(receiptAppt)}
+                disabled={isGeneratingPdf}
+                style={{
+                  background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  color: "#ffffff",
+                  border: "none",
+                  padding: "12px 22px",
+                  borderRadius: "14px",
+                  fontWeight: 700,
+                  fontSize: "0.92rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: "0 4px 14px rgba(16, 185, 129, 0.3)"
+                }}
+              >
+                <Send size={18} />
+                <span>{isGeneratingPdf ? "Processando PDF..." : "Enviar PDF via WhatsApp"}</span>
               </button>
             </div>
           </div>
