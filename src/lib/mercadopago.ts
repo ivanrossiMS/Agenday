@@ -10,7 +10,7 @@ export interface MercadoPagoConfig {
 export async function getMercadoPagoConfig(): Promise<MercadoPagoConfig> {
   let accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN || "";
   let publicKey = process.env.MERCADOPAGO_PUBLIC_KEY || "";
-  let sandbox = process.env.MERCADOPAGO_SANDBOX === "false" ? false : true;
+  let sandbox = false;
   let autoConfirm = true;
 
   const sql = getDb();
@@ -27,6 +27,11 @@ export async function getMercadoPagoConfig(): Promise<MercadoPagoConfig> {
     } catch (err) {
       console.error("Error reading Mercado Pago settings:", err);
     }
+  }
+
+  // If token is a production token (starts with APP_USR-), force sandbox = false
+  if (accessToken.startsWith("APP_USR-")) {
+    sandbox = false;
   }
 
   return { accessToken, publicKey, sandbox, autoConfirm };
