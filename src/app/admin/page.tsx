@@ -4811,15 +4811,38 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Legal Note & Signature */}
+              {/* Legal Note & Handwritten Signature */}
               <div style={{ marginTop: "24px", borderTop: "1px solid #f1f5f9", paddingTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                <p style={{ fontSize: "0.72rem", color: "#94a3b8", margin: 0, maxWidth: "340px", lineHeight: 1.3 }}>
+                <p style={{ fontSize: "0.72rem", color: "#94a3b8", margin: 0, maxWidth: "300px", lineHeight: 1.3 }}>
                   Declaro para os devidos fins que recebi a quantia descrita neste comprovante referente aos serviços de beleza agendados e prestados.
                 </p>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ width: "160px", borderBottom: "1px solid #cbd5e1", marginBottom: "4px" }} />
-                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#475569" }}>
-                    Fran Marinho Studio
+                <div style={{ textAlign: "center", position: "relative" }}>
+                  {/* Cursive Handwritten Signature */}
+                  <div style={{ 
+                    fontFamily: "'Dancing Script', 'Caveat', 'Playfair Display', cursive", 
+                    fontSize: "1.9rem", 
+                    fontWeight: 700, 
+                    color: "#a85145", 
+                    lineHeight: 1, 
+                    marginBottom: "-4px", 
+                    transform: "rotate(-3deg)",
+                    letterSpacing: "0.02em"
+                  }}>
+                    Francielli Marinho
+                  </div>
+
+                  {/* Underline Flourish */}
+                  <svg width="170" height="12" viewBox="0 0 170 12" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ margin: "0 auto", display: "block" }}>
+                    <path d="M 5 6 Q 45 1, 85 6 T 165 5" stroke="#a85145" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
+                  </svg>
+
+                  <div style={{ width: "170px", borderBottom: "1px solid #cbd5e1", margin: "2px auto 4px" }} />
+
+                  <span style={{ fontSize: "0.76rem", fontWeight: 700, color: "#334155", display: "block" }}>
+                    Francielli Marinho Brasil
+                  </span>
+                  <span style={{ fontSize: "0.68rem", color: "#64748b", display: "block" }}>
+                    Proprietária & Responsável Técnica
                   </span>
                 </div>
               </div>
