@@ -372,31 +372,24 @@ export default function AdminDashboard() {
       pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
 
       const pdfBlob = pdf.output("blob");
-      const clientObj = clients.find(c => (c.email && appt.clientEmail && c.email.toLowerCase() === appt.clientEmail.toLowerCase()) || c.name === appt.clientName);
+      const clientObj = clients.find(c => 
+        (c.email && appt.clientEmail && c.email.toLowerCase().trim() === appt.clientEmail.toLowerCase().trim()) ||
+        (c.name && appt.clientName && c.name.toLowerCase().trim() === appt.clientName.toLowerCase().trim())
+      );
       const rawPhone = clientObj?.phone || (appt as any).clientPhone || (appt as any).phone || "";
       const cleanPhone = rawPhone.replace(/\D/g, "");
       const phoneWithDdi = cleanPhone ? (cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone) : "";
 
       const fileName = `Recibo_FranMarinho_${appt.id}.pdf`;
-      const file = new File([pdfBlob], fileName, { type: "application/pdf" });
+      pdf.save(fileName);
 
-      if (typeof navigator !== "undefined" && (navigator as any).canShare && (navigator as any).canShare({ files: [file] })) {
-        await (navigator as any).share({
-          files: [file],
-          title: "Recibo de Pagamento - Fran Marinho Studio de Beleza",
-          text: `Olá ${appt.clientName || 'Cliente'}! Segue o seu Recibo Oficial de Pagamento.`
-        });
+      const msg = `Olá, ${appt.clientName || 'Cliente'}! 📄✨\n\nAcabei de gerar o seu *Recibo Oficial de Pagamento em PDF* referente ao atendimento do dia *${appt.date}* (${appt.service}).\n\nO recibo em PDF foi baixado. Segue para o seu controle!`;
+      const encodedMsg = encodeURIComponent(msg);
+
+      if (phoneWithDdi) {
+        window.open(`https://wa.me/${phoneWithDdi}?text=${encodedMsg}`, '_blank');
       } else {
-        pdf.save(fileName);
-
-        const msg = `Olá, ${appt.clientName || 'Cliente'}! 📄✨\n\nAcabei de gerar o seu *Recibo Oficial de Pagamento em PDF* referente ao atendimento do dia *${appt.date}* (${appt.service}).\n\nO PDF do recibo foi baixado e você também pode armazená-lo para seus comprovantes!`;
-        const encodedMsg = encodeURIComponent(msg);
-
-        if (phoneWithDdi) {
-          window.open(`https://wa.me/${phoneWithDdi}?text=${encodedMsg}`, '_blank');
-        } else {
-          window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
-        }
+        window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
       }
     } catch (err) {
       console.error("Error sharing PDF receipt:", err);
