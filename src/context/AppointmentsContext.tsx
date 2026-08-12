@@ -52,7 +52,7 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
       const localAppts: Appointment[] = savedAppts 
         ? JSON.parse(savedAppts).filter((a: any) => 
             a.clientEmail !== "cliente@vip.com" &&
-            !((a.mpPaymentMethod || a.mpPaymentId) && (a.paymentStatus === "open" || a.status === "pending"))
+            !((a.mpPaymentMethod || a.mpPaymentId) && a.paymentStatus === "open")
           ) 
         : [];
       const savedClosed = localStorage.getItem("@agenday:closedDates");
@@ -87,7 +87,7 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
               mpStatus: item.mp_status || undefined,
             })).filter((a: Appointment) => 
               a.clientEmail !== "cliente@vip.com" &&
-              !((a.mpPaymentMethod || a.mpPaymentId) && (a.paymentStatus === "open" || a.status === "pending"))
+              !((a.mpPaymentMethod || a.mpPaymentId) && a.paymentStatus === "open")
             );
             setAppointments(formatted);
             localStorage.setItem("@agenday:appointments", JSON.stringify(formatted));
@@ -338,7 +338,7 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
           mpStatus: item.mp_status || undefined,
         })).filter((a: Appointment) => 
           a.clientEmail !== "cliente@vip.com" &&
-          !((a.mpPaymentMethod || a.mpPaymentId) && (a.paymentStatus === "open" || a.status === "pending"))
+          !((a.mpPaymentMethod || a.mpPaymentId) && a.paymentStatus === "open")
         );
 
         setAppointments(formatted);

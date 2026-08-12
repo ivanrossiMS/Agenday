@@ -234,7 +234,10 @@ export default function DashboardPage() {
 
   // Filters: strictly show appointments for the logged-in user, sorted from newest (latest) to oldest
   const myAppts = appointments
-    .filter(a => user && a.clientEmail?.toLowerCase() === user.email?.toLowerCase())
+    .filter(a => user && (
+      (a.clientEmail && user.email && a.clientEmail.trim().toLowerCase() === user.email.trim().toLowerCase()) ||
+      (a.clientName && user.name && a.clientName.trim().toLowerCase() === user.name.trim().toLowerCase())
+    ))
     .sort((a, b) => {
       const timeA = parseApptTimestamp(a.date, a.time);
       const timeB = parseApptTimestamp(b.date, b.time);
