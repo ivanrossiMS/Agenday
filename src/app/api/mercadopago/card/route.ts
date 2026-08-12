@@ -140,33 +140,21 @@ export async function POST(req: Request) {
         ].includes(cleanCard) || cleanCard.startsWith("533675") || cleanCard.startsWith("424242");
 
         if (mpStatus === "rejected") {
-          if (isTestCard || statusDetail === "cc_rejected_high_risk" || statusDetail === "cc_rejected_other_reason") {
-            // Approve test card numbers seamlessly so testing is never blocked
-            mpStatus = "approved";
-            mpPaymentId = `CARD_TEST_${Date.now()}`;
-          } else {
-            let causeMsg = "Pagamento recusado pela operadora do cartão.";
-            if (statusDetail === "cc_rejected_insufficient_amount") causeMsg = "Saldo insuficiente no cartão.";
-            else if (statusDetail === "cc_rejected_bad_filled_security_code") causeMsg = "Código de segurança (CVV) incorreto.";
-            else if (statusDetail === "cc_rejected_bad_filled_date") causeMsg = "Data de validade incorreta.";
-            else if (statusDetail === "cc_rejected_bad_filled_other") causeMsg = "Por favor, verifique os dados do cartão.";
-            else if (statusDetail === "cc_rejected_call_for_authorize") causeMsg = "Pagamento requer autorização da sua instituição financeira.";
+          let causeMsg = "Pagamento recusado pela operadora do cartão.";
+          if (statusDetail === "cc_rejected_insufficient_amount") causeMsg = "Saldo insuficiente no cartão.";
+          else if (statusDetail === "cc_rejected_bad_filled_security_code") causeMsg = "Código de segurança (CVV) incorreto.";
+          else if (statusDetail === "cc_rejected_bad_filled_date") causeMsg = "Data de validade incorreta.";
+          else if (statusDetail === "cc_rejected_bad_filled_other") causeMsg = "Por favor, verifique os dados do cartão.";
+          else if (statusDetail === "cc_rejected_call_for_authorize") causeMsg = "Pagamento requer autorização da sua instituição financeira.";
+          else if (statusDetail === "cc_rejected_high_risk") causeMsg = "Pagamento recusado por segurança do Mercado Pago. Tente outro cartão ou Pix.";
+          else if (statusDetail === "cc_rejected_other_reason") causeMsg = "Pagamento recusado pela operadora. Verifique se o cartão é válido ou escolha Pix.";
 
-            return NextResponse.json({ error: causeMsg, statusDetail, status: mpStatus }, { status: 400 });
-          }
+          return NextResponse.json({ error: causeMsg, statusDetail, status: mpStatus }, { status: 400 });
         }
       } else {
         console.error("Mercado Pago Card Payment Error:", mpData);
-        const cleanCard = (cardNumber || "").replace(/\D/g, "");
-        const isTestCard = cleanCard.startsWith("533675") || cleanCard.startsWith("424242");
-
-        if (isTestCard) {
-          mpStatus = "approved";
-          mpPaymentId = `CARD_TEST_${Date.now()}`;
-        } else {
-          const errorMsg = mpData.cause?.[0]?.description || mpData.message || "Não foi possível processar o pagamento com cartão.";
-          return NextResponse.json({ error: `Erro Mercado Pago: ${errorMsg}` }, { status: 400 });
-        }
+        const errorMsg = mpData.cause?.[0]?.description || mpData.message || "Não foi possível processar o pagamento com cartão.";
+        return NextResponse.json({ error: `Erro Mercado Pago: ${errorMsg}` }, { status: 400 });
       }
     } else {
       // Direct simulation mode ONLY when Access Token is not configured at all
