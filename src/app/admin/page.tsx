@@ -321,9 +321,7 @@ export default function AdminDashboard() {
       backgroundColor: "#ffffff",
       logging: false,
       width: receiptElem.scrollWidth,
-      height: receiptElem.scrollHeight,
-      windowWidth: receiptElem.scrollWidth + 100,
-      windowHeight: receiptElem.scrollHeight + 100
+      height: receiptElem.scrollHeight
     });
 
     const imgData = canvas.toDataURL("image/png");
@@ -336,26 +334,24 @@ export default function AdminDashboard() {
     const pdfPageWidth = pdf.internal.pageSize.getWidth();
     const pdfPageHeight = pdf.internal.pageSize.getHeight();
 
-    const margin = 10;
-    const contentWidth = pdfPageWidth - (margin * 2);
-    const contentHeight = (canvas.height * contentWidth) / canvas.width;
+    const marginX = 10;
+    const marginY = 10;
+    const maxAvailableWidth = pdfPageWidth - (marginX * 2);
+    const maxAvailableHeight = pdfPageHeight - (marginY * 2);
 
-    if (contentHeight <= pdfPageHeight - (margin * 2)) {
-      pdf.addImage(imgData, "PNG", margin, margin, contentWidth, contentHeight);
-    } else {
-      let heightLeft = contentHeight;
-      let position = margin;
+    const ratioX = maxAvailableWidth / canvas.width;
+    const ratioY = maxAvailableHeight / canvas.height;
 
-      pdf.addImage(imgData, "PNG", margin, position, contentWidth, contentHeight);
-      heightLeft -= (pdfPageHeight - margin);
+    // Use smaller ratio so content NEVER overflows onto page 2
+    const scaleRatio = Math.min(ratioX, ratioY);
 
-      while (heightLeft > 0) {
-        position = heightLeft - contentHeight + margin;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", margin, position, contentWidth, contentHeight);
-        heightLeft -= pdfPageHeight;
-      }
-    }
+    const finalWidth = canvas.width * scaleRatio;
+    const finalHeight = canvas.height * scaleRatio;
+
+    const offsetX = (pdfPageWidth - finalWidth) / 2;
+    const offsetY = marginY;
+
+    pdf.addImage(imgData, "PNG", offsetX, offsetY, finalWidth, finalHeight);
 
     return pdf;
   };
@@ -4684,8 +4680,8 @@ export default function AdminDashboard() {
                 background: "#ffffff",
                 borderRadius: "16px",
                 border: "1px solid #cbd5e1",
-                padding: "24px 22px",
-                width: "600px",
+                padding: "20px 18px",
+                width: "560px",
                 maxWidth: "100%",
                 boxSizing: "border-box",
                 margin: "0 auto",
@@ -4695,78 +4691,78 @@ export default function AdminDashboard() {
               }}
             >
               {/* Receipt Header Banner */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #a85145", paddingBottom: "20px", marginBottom: "20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #a85145", paddingBottom: "14px", marginBottom: "14px" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#a85145", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "1rem" }}>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#a85145", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.9rem" }}>
                       FM
                     </div>
                     <div>
-                      <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "#a85145", margin: 0, lineHeight: 1.1 }}>
+                      <h2 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#a85145", margin: 0, lineHeight: 1.1 }}>
                         Fran Marinho
                       </h2>
-                      <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         Studio de Beleza
                       </span>
                     </div>
                   </div>
-                  <p style={{ fontSize: "0.8rem", color: "#64748b", margin: "6px 0 0 0", lineHeight: 1.4 }}>
+                  <p style={{ fontSize: "0.76rem", color: "#64748b", margin: "4px 0 0 0", lineHeight: 1.3 }}>
                     Rua Abrão Júlio Rahe, 1801 • Campo Grande/MS<br />
                     WhatsApp: (67) 99266-6464
                   </p>
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ background: "#fff5f0", border: "1px solid #fed7aa", color: "#a85145", padding: "6px 14px", borderRadius: "10px", fontSize: "0.78rem", fontWeight: 800, display: "inline-block", marginBottom: "8px" }}>
+                  <div style={{ background: "#fff5f0", border: "1px solid #fed7aa", color: "#a85145", padding: "4px 12px", borderRadius: "8px", fontSize: "0.72rem", fontWeight: 800, display: "inline-block", marginBottom: "6px" }}>
                     COMPROVANTE DE PAGAMENTO
                   </div>
-                  <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0f172a" }}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#0f172a" }}>
                     Nº #{receiptAppt.id}
                   </div>
-                  <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "2px" }}>
+                  <div style={{ fontSize: "0.72rem", color: "#64748b", marginTop: "2px" }}>
                     Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
               </div>
 
               {/* Verified Stamp Banner */}
-              <div style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "1px solid #86efac", borderRadius: "12px", padding: "14px 18px", display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
-                <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#16a34a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <CheckCircle2 size={22} />
+              <div style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "1px solid #86efac", borderRadius: "10px", padding: "10px 14px", display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: "#16a34a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <CheckCircle2 size={18} />
                 </div>
                 <div>
-                  <div style={{ fontSize: "0.95rem", fontWeight: 800, color: "#15803d" }}>
+                  <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "#15803d" }}>
                     ✓ PAGAMENTO QUITADO E CONFIRMADO
                   </div>
-                  <div style={{ fontSize: "0.78rem", color: "#166534" }}>
+                  <div style={{ fontSize: "0.74rem", color: "#166534" }}>
                     Valor devidamente recebido e registrado em nosso sistema.
                   </div>
                 </div>
               </div>
 
               {/* Info Grid: Client & Payment Details */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
-                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px 16px" }}>
-                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
+                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px" }}>
+                  <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>
                     DADOS DO CLIENTE
                   </span>
-                  <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a" }}>
+                  <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "#0f172a" }}>
                     {receiptAppt.clientName || "Cliente"}
                   </div>
-                  <div style={{ fontSize: "0.82rem", color: "#475569", marginTop: "2px" }}>
+                  <div style={{ fontSize: "0.78rem", color: "#475569", marginTop: "2px" }}>
                     📧 {receiptAppt.clientEmail || "Não informado"}
                   </div>
                 </div>
 
-                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px 16px" }}>
-                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px" }}>
+                  <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>
                     FORMA DE PAGAMENTO
                   </span>
-                  <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a" }}>
+                  <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "#0f172a" }}>
                     {receiptAppt.paymentStatus === "paid_pix" ? "⚡ Pix Automático (Mercado Pago)" : receiptAppt.paymentStatus === "paid_credit" ? "💳 Cartão de Crédito" : "💰 Pago no Salão"}
                   </div>
                   {receiptAppt.mpPaymentId && (
-                    <div style={{ fontSize: "0.78rem", color: "#475569", marginTop: "2px" }}>
+                    <div style={{ fontSize: "0.74rem", color: "#475569", marginTop: "2px" }}>
                       ID MP: {receiptAppt.mpPaymentId}
                     </div>
                   )}
@@ -4774,53 +4770,53 @@ export default function AdminDashboard() {
               </div>
 
               {/* Services Table */}
-              <div style={{ marginBottom: "24px" }}>
-                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
+              <div style={{ marginBottom: "14px" }}>
+                <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
                   DISCRIMINAÇÃO DOS SERVIÇOS
                 </span>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
                   <thead>
                     <tr style={{ background: "#f1f5f9", textAlign: "left", color: "#475569", fontWeight: 700 }}>
-                      <th style={{ padding: "10px 12px", borderRadius: "8px 0 0 8px" }}>Descrição do Serviço</th>
-                      <th style={{ padding: "10px 12px" }}>Data & Horário</th>
-                      <th style={{ padding: "10px 12px", textAlign: "right", borderRadius: "0 8px 8px 0" }}>Valor Liquidado</th>
+                      <th style={{ padding: "8px 10px", borderRadius: "6px 0 0 6px" }}>Descrição do Serviço</th>
+                      <th style={{ padding: "8px 10px" }}>Data & Horário</th>
+                      <th style={{ padding: "8px 10px", textAlign: "right", borderRadius: "0 6px 6px 0" }}>Valor Liquidado</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "12px", fontWeight: 600, color: "#0f172a" }}>{receiptAppt.service}</td>
-                      <td style={{ padding: "12px", color: "#475569" }}>{receiptAppt.date} às {receiptAppt.time}</td>
-                      <td style={{ padding: "12px", textAlign: "right", fontWeight: 700, color: "#0f172a" }}>R$ {Number(receiptAppt.price || 0).toFixed(2).replace('.', ',')}</td>
+                      <td style={{ padding: "10px", fontWeight: 600, color: "#0f172a" }}>{receiptAppt.service}</td>
+                      <td style={{ padding: "10px", color: "#475569" }}>{receiptAppt.date} às {receiptAppt.time}</td>
+                      <td style={{ padding: "10px", textAlign: "right", fontWeight: 700, color: "#0f172a" }}>R$ {Number(receiptAppt.price || 0).toFixed(2).replace('.', ',')}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
               {/* Total Box & Terms */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff5f0", border: "1.5px solid #fed7aa", borderRadius: "14px", padding: "16px 20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff5f0", border: "1.5px solid #fed7aa", borderRadius: "12px", padding: "12px 16px" }}>
                 <div>
-                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#a85145", textTransform: "uppercase", display: "block" }}>
+                  <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#a85145", textTransform: "uppercase", display: "block" }}>
                     TOTAL PAGO E LIQUIDADO
                   </span>
-                  <span style={{ fontSize: "0.78rem", color: "#78350f" }}>
+                  <span style={{ fontSize: "0.72rem", color: "#78350f" }}>
                     Impostos e taxas inclusos
                   </span>
                 </div>
-                <div style={{ fontSize: "1.6rem", fontWeight: 800, color: "#a85145" }}>
+                <div style={{ fontSize: "1.45rem", fontWeight: 800, color: "#a85145" }}>
                   R$ {Number(receiptAppt.price || 0).toFixed(2).replace('.', ',')}
                 </div>
               </div>
 
               {/* Legal Note & Handwritten Signature */}
-              <div style={{ marginTop: "24px", borderTop: "1px solid #f1f5f9", paddingTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                <p style={{ fontSize: "0.72rem", color: "#94a3b8", margin: 0, maxWidth: "300px", lineHeight: 1.3 }}>
+              <div style={{ marginTop: "16px", borderTop: "1px solid #f1f5f9", paddingTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                <p style={{ fontSize: "0.68rem", color: "#94a3b8", margin: 0, maxWidth: "280px", lineHeight: 1.3 }}>
                   Declaro para os devidos fins que recebi a quantia descrita neste comprovante referente aos serviços de beleza agendados e prestados.
                 </p>
                 <div style={{ textAlign: "center", position: "relative" }}>
                   {/* Cursive Handwritten Signature */}
                   <div style={{ 
                     fontFamily: "'Dancing Script', 'Caveat', 'Playfair Display', cursive", 
-                    fontSize: "1.9rem", 
+                    fontSize: "1.75rem", 
                     fontWeight: 700, 
                     color: "#a85145", 
                     lineHeight: 1, 
@@ -4832,16 +4828,16 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* Underline Flourish */}
-                  <svg width="170" height="12" viewBox="0 0 170 12" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ margin: "0 auto", display: "block" }}>
-                    <path d="M 5 6 Q 45 1, 85 6 T 165 5" stroke="#a85145" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
+                  <svg width="150" height="10" viewBox="0 0 150 10" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ margin: "0 auto", display: "block" }}>
+                    <path d="M 5 5 Q 40 1, 75 5 T 145 4" stroke="#a85145" strokeWidth="1.6" strokeLinecap="round" opacity="0.85" />
                   </svg>
 
-                  <div style={{ width: "170px", borderBottom: "1px solid #cbd5e1", margin: "2px auto 4px" }} />
+                  <div style={{ width: "150px", borderBottom: "1px solid #cbd5e1", margin: "2px auto 3px" }} />
 
-                  <span style={{ fontSize: "0.76rem", fontWeight: 700, color: "#334155", display: "block" }}>
+                  <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#334155", display: "block" }}>
                     Francielli Marinho Brasil
                   </span>
-                  <span style={{ fontSize: "0.68rem", color: "#64748b", display: "block" }}>
+                  <span style={{ fontSize: "0.65rem", color: "#64748b", display: "block" }}>
                     Proprietária & Responsável Técnica
                   </span>
                 </div>
