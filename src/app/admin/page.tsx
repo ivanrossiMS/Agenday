@@ -314,30 +314,59 @@ export default function AdminDashboard() {
   const [receiptAppt, setReceiptAppt] = useState<Appointment | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
+  const buildReceiptPdf = async (receiptElem: HTMLElement) => {
+    const canvas = await html2canvas(receiptElem, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+      width: receiptElem.scrollWidth,
+      height: receiptElem.scrollHeight,
+      windowWidth: receiptElem.scrollWidth + 100,
+      windowHeight: receiptElem.scrollHeight + 100
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4"
+    });
+
+    const pdfPageWidth = pdf.internal.pageSize.getWidth();
+    const pdfPageHeight = pdf.internal.pageSize.getHeight();
+
+    const margin = 10;
+    const contentWidth = pdfPageWidth - (margin * 2);
+    const contentHeight = (canvas.height * contentWidth) / canvas.width;
+
+    if (contentHeight <= pdfPageHeight - (margin * 2)) {
+      pdf.addImage(imgData, "PNG", margin, margin, contentWidth, contentHeight);
+    } else {
+      let heightLeft = contentHeight;
+      let position = margin;
+
+      pdf.addImage(imgData, "PNG", margin, position, contentWidth, contentHeight);
+      heightLeft -= (pdfPageHeight - margin);
+
+      while (heightLeft > 0) {
+        position = heightLeft - contentHeight + margin;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", margin, position, contentWidth, contentHeight);
+        heightLeft -= pdfPageHeight;
+      }
+    }
+
+    return pdf;
+  };
+
   const handleDownloadReceiptPdf = async (appt: Appointment) => {
     const receiptElem = document.getElementById("receipt-print-container");
     if (!receiptElem) return;
 
     setIsGeneratingPdf(true);
     try {
-      const canvas = await html2canvas(receiptElem, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false
-      });
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4"
-      });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      const pdf = await buildReceiptPdf(receiptElem);
       pdf.save(`Recibo_FranMarinho_${(appt.clientName || 'Cliente').replace(/\s+/g, '_')}_${appt.id}.pdf`);
     } catch (err) {
       console.error("Error generating PDF receipt:", err);
@@ -352,44 +381,33 @@ export default function AdminDashboard() {
 
     setIsGeneratingPdf(true);
     try {
-      const canvas = await html2canvas(receiptElem, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false
-      });
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4"
-      });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-
+      const pdf = await buildReceiptPdf(receiptElem);
       const pdfBlob = pdf.output("blob");
-      const clientObj = clients.find(c => 
-        (c.email && appt.clientEmail && c.email.toLowerCase().trim() === appt.clientEmail.toLowerCase().trim()) ||
-        (c.name && appt.clientName && c.name.toLowerCase().trim() === appt.clientName.toLowerCase().trim())
-      );
+      const clientObj = clients.find(c => (c.email && appt.clientEmail && c.email.toLowerCase() === appt.clientEmail.toLowerCase()) || c.name === appt.clientName);
       const rawPhone = clientObj?.phone || (appt as any).clientPhone || (appt as any).phone || "";
       const cleanPhone = rawPhone.replace(/\D/g, "");
       const phoneWithDdi = cleanPhone ? (cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone) : "";
 
       const fileName = `Recibo_FranMarinho_${appt.id}.pdf`;
-      pdf.save(fileName);
+      const file = new File([pdfBlob], fileName, { type: "application/pdf" });
 
-      const msg = `Olá, ${appt.clientName || 'Cliente'}! 📄✨\n\nAcabei de gerar o seu *Recibo Oficial de Pagamento em PDF* referente ao atendimento do dia *${appt.date}* (${appt.service}).\n\nO recibo em PDF foi baixado. Segue para o seu controle!`;
-      const encodedMsg = encodeURIComponent(msg);
-
-      if (phoneWithDdi) {
-        window.open(`https://wa.me/${phoneWithDdi}?text=${encodedMsg}`, '_blank');
+      if (typeof navigator !== "undefined" && (navigator as any).canShare && (navigator as any).canShare({ files: [file] })) {
+        await (navigator as any).share({
+          files: [file],
+          title: "Recibo de Pagamento - Fran Marinho Studio de Beleza",
+          text: `Olá ${appt.clientName || 'Cliente'}! Segue o seu Recibo Oficial de Pagamento.`
+        });
       } else {
-        window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
+        pdf.save(fileName);
+
+        const msg = `Olá, ${appt.clientName || 'Cliente'}! 📄✨\n\nAcabei de gerar o seu *Recibo Oficial de Pagamento em PDF* referente ao atendimento do dia *${appt.date}* (${appt.service}).\n\nO PDF do recibo foi baixado e você também pode armazená-lo para seus comprovantes!`;
+        const encodedMsg = encodeURIComponent(msg);
+
+        if (phoneWithDdi) {
+          window.open(`https://wa.me/${phoneWithDdi}?text=${encodedMsg}`, '_blank');
+        } else {
+          window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
+        }
       }
     } catch (err) {
       console.error("Error sharing PDF receipt:", err);
@@ -4666,7 +4684,11 @@ export default function AdminDashboard() {
                 background: "#ffffff",
                 borderRadius: "16px",
                 border: "1px solid #cbd5e1",
-                padding: "32px 28px",
+                padding: "24px 22px",
+                width: "600px",
+                maxWidth: "100%",
+                boxSizing: "border-box",
+                margin: "0 auto",
                 fontFamily: "var(--font-inter, sans-serif)",
                 color: "#1e293b",
                 boxShadow: "0 4px 20px rgba(0,0,0,0.04)"
