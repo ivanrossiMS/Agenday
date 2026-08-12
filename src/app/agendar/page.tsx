@@ -345,20 +345,6 @@ function AgendarFlow() {
       try {
         const [expMonth, expYear] = expiryDate.split("/");
 
-        // Create appointment in local state first
-        addAppointment({
-          id: appointmentId,
-          date: selectedDateStr,
-          time: selectedTime,
-          endTime: endTime,
-          service: servicesStr,
-          price: totalPrice,
-          status: 'pending',
-          paymentStatus: 'open',
-          clientName: user.name,
-          clientEmail: user.email,
-        });
-
         const res = await fetch("/api/mercadopago/card", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -381,16 +367,30 @@ function AgendarFlow() {
         setIsProcessingPayment(false);
 
         if (!res.ok || !data.success) {
-          setPaymentError(data.error || "O pagamento com cartão foi recusado.");
+          setPaymentError(data.error || "O pagamento com cartão foi recusado pelo Mercado Pago.");
           return;
         }
+
+        // Add appointment ONLY after payment succeeds
+        addAppointment({
+          id: appointmentId,
+          date: selectedDateStr,
+          time: selectedTime,
+          endTime: endTime,
+          service: servicesStr,
+          price: totalPrice,
+          status: 'confirmed',
+          paymentStatus: 'paid_credit',
+          clientName: user.name,
+          clientEmail: user.email,
+        });
 
         setConfirmedApptData({
           service: servicesStr,
           date: selectedDateStr,
           time: selectedTime,
           price: totalPrice,
-          paymentStatus: 'paid_card'
+          paymentStatus: 'paid_credit'
         });
         setShowSuccessModal(true);
       } catch (err: any) {

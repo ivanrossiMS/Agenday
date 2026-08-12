@@ -462,7 +462,28 @@ export default function DashboardPage() {
 
   const handleCancel = () => {
     if (cancelingId) {
+      const apptToCancel = appointments.find(a => a.id === cancelingId);
       updateStatus(cancelingId, "canceled");
+
+      if (apptToCancel) {
+        const clientName = user?.name || apptToCancel.clientName || "Cliente";
+        let rawPhone = siteSettings.whatsappNumber ? siteSettings.whatsappNumber.replace(/\D/g, "") : "";
+        if (rawPhone && rawPhone.length <= 11 && !rawPhone.startsWith("55")) {
+          rawPhone = "55" + rawPhone;
+        }
+
+        const text = `Olá! Gostaria de *cancelar* meu agendamento:\n\n` +
+          `👤 *Cliente:* ${clientName}\n` +
+          `📅 *Data:* ${apptToCancel.date}\n` +
+          `⏰ *Horário:* ${apptToCancel.time}\n` +
+          `💅 *Serviço:* ${apptToCancel.service}\n\n` +
+          `Solicito o cancelamento deste horário. Obrigado(a)!`;
+
+        if (rawPhone) {
+          window.open(`https://wa.me/${rawPhone}?text=${encodeURIComponent(text)}`, "_blank");
+        }
+      }
+
       setCancelingId(null);
     }
   };
