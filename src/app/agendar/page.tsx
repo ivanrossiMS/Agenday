@@ -109,7 +109,11 @@ function AgendarFlow() {
         return;
       }
     } else {
-      register(name, email, password, birthDate, phone);
+      const regResult = await register(name, email, password, birthDate, phone);
+      if (!regResult.success || !regResult.user) {
+        setAuthError(regResult.error || "Erro ao realizar cadastro.");
+        return;
+      }
     }
     handleNext();
   };

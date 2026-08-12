@@ -17,8 +17,8 @@ export type ClientItem = {
 
 type ClientsContextType = {
   clients: ClientItem[];
-  addClient: (client: Omit<ClientItem, "id">) => void;
-  updateClient: (id: string, updates: Partial<ClientItem>) => void;
+  addClient: (client: Omit<ClientItem, "id">) => Promise<{ success: boolean; error?: string }>;
+  updateClient: (id: string, updates: Partial<ClientItem>) => Promise<{ success: boolean; error?: string }>;
   deleteClient: (id: string) => void;
 };
 
@@ -93,46 +93,99 @@ export function ClientsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("@agenday:clients", JSON.stringify(newClients));
   };
 
-  const addClient = async (client: Omit<ClientItem, "id">) => {
+  const addClient = async (client: Omit<ClientItem, "id">): Promise<{ success: boolean; error?: string }> => {
+    const cleanEmail = client.email ? client.email.trim().toLowerCase() : "";
+    if (!cleanEmail) {
+      return { success: false, error: "E-mail é obrigatório." };
+    }
+
+    const existsLocally = clients.some(c => c.email && c.email.trim().toLowerCase() === cleanEmail);
+    if (existsLocally) {
+      return { success: false, error: "Este e-mail já está cadastrado por outro cliente." };
+    }
+
     const newId = Math.random().toString(36).substring(2, 11);
-    const newClient = { ...client, id: newId };
-    const updatedList = [...clients, newClient];
-    saveToStorage(updatedList);
+    const newClient = { ...client, email: cleanEmail, id: newId };
 
     try {
-      await fetch("/api/clients", {
+      const res = await fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newClient)
       });
-    } catch (e) {
+      const json = await res.json();
+      if (!res.ok || json.success === false) {
+        return { success: false, error: json.message || "Este e-mail já está cadastrado." };
+      }
+    } catch (e: any) {
       console.error("Erro ao adicionar cliente via API:", e);
+      return { success: false, error: "Erro de conexão ao salvar cliente." };
     }
+
+    const updatedList = [...clients, newClient];
+    saveToStorage(updatedList);
+    return { success: true };
   };
 
-  const updateClient = async (id: string, updates: Partial<ClientItem>) => {
+  const updateClient = async (id: string, updates: Partial<ClientItem>): Promise<{ success: boolean; error?: string }> => {
     const target = clients.find(c => c.id === id);
-    const updated = { ...(target || {}), ...updates, id } as ClientItem;
-    const updatedList = clients.map(c => c.id === id ? updated : c);
-    saveToStorage(updatedList);
+    if (!target) return { success: false, error: "Cliente não encontrado." };
+
+    const newEmail = updates.email ? updates.email.trim().toLowerCase() : target.email;
+    if (newEmail) {
+      const existsOther = clients.some(c => c.id !== id && c.email && c.email.trim().toLowerCase() === newEmail);
+      if (existsOther) {
+        return { success: false, error: "Este e-mail já pertence a outro cliente cadastrado." };
+      }
+    }
+
+    const updated = { ...target, ...updates, email: newEmail, id } as ClientItem;
 
     try {
-      await fetch("/api/clients", {
+      const res = await fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updated)
       });
-    } catch (e) {
+      const json = await res.json();
+      if (!res.ok || json.success === false) {
+        return { success: false, error: json.message || "Erro ao atualizar cliente na API." };
+      }
+    } catch (e: any) {
       console.error("Erro ao atualizar cliente via API:", e);
+      return { success: false, error: "Erro de conexão ao atualizar cliente." };
     }
+
+    const updatedList = clients.map(c => c.id === id ? updated : c);
+    saveToStorage(updatedList);
+    return { success: true };
   };
 
   const deleteClient = async (id: string) => {
+    const target = clients.find(c => c.id === id);
     const updatedList = clients.filter(c => c.id !== id);
     saveToStorage(updatedList);
 
+    // Limpar das listas locais de usuários se existir
     try {
-      await fetch(`/api/clients?id=${id}`, { method: "DELETE" });
+      const usersListStr = localStorage.getItem("@agenday:users_list");
+      if (usersListStr) {
+        let usersList: any[] = JSON.parse(usersListStr);
+        usersList = usersList.filter(u => u.id !== id && (target?.email ? u.email.toLowerCase() !== target.email.toLowerCase() : true));
+        localStorage.setItem("@agenday:users_list", JSON.stringify(usersList));
+      }
+      const storedUserStr = localStorage.getItem("@agenday:user");
+      if (storedUserStr && target?.email) {
+        const storedUser = JSON.parse(storedUserStr);
+        if (storedUser.email && storedUser.email.toLowerCase() === target.email.toLowerCase()) {
+          localStorage.removeItem("@agenday:user");
+        }
+      }
+    } catch (e) {}
+
+    try {
+      const url = `/api/clients?id=${id}${target?.email ? `&email=${encodeURIComponent(target.email)}` : ''}`;
+      await fetch(url, { method: "DELETE" });
     } catch (e) {
       console.error("Erro ao deletar cliente via API:", e);
     }

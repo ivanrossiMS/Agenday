@@ -384,4 +384,37 @@
   justify-content: center !important;
 }
 
+.buttonGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.cancelBtn {
+  width: 100%;
+  padding: 14px 24px;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.98rem;
+  font-weight: 700;
+  border: 1.5px solid #cbd5e1;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cancelBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+
 

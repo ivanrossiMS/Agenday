@@ -237,16 +237,12 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
 
   const toggleTimeSlot = async (dateStr: string, time: string) => {
     const key = `${dateStr}-${time}`;
-    let isCurrentlyBlocked = false;
+    const isCurrentlyBlocked = blockedTimeSlots.includes(key);
+    const newBlocked = isCurrentlyBlocked
+      ? blockedTimeSlots.filter(k => k !== key)
+      : [...blockedTimeSlots, key];
 
-    setBlockedTimeSlots(prev => {
-      isCurrentlyBlocked = prev.includes(key);
-      if (isCurrentlyBlocked) {
-        return prev.filter(k => k !== key);
-      } else {
-        return [...prev, key];
-      }
-    });
+    setBlockedTimeSlots(newBlocked);
 
     try {
       if (isCurrentlyBlocked) {

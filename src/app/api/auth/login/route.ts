@@ -48,6 +48,14 @@ export async function POST(req: Request) {
       if (rows.length > 0) {
         const dbClient = rows[0];
 
+        // Se o cliente estiver inativo, bloqueia o acesso ao sistema
+        if (dbClient.status === "inactive") {
+          return NextResponse.json(
+            { success: false, message: "Seu cadastro está inativo. O acesso ao sistema foi bloqueado pela administração." },
+            { status: 403 }
+          );
+        }
+
         // Se o cliente possui senha no banco, valida se é idêntica
         if (dbClient.password && dbClient.password.trim() !== "") {
           if (dbClient.password !== password) {

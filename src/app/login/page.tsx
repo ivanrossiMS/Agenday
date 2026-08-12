@@ -117,11 +117,22 @@ export default function LoginPage() {
         setIsSubmitting(false);
       }
     } else {
-      const loggedUser = register(name, email, password, birthDate, phone);
-      if (loggedUser.role === "admin") {
-        router.push("/admin");
-      } else {
-        router.push("/dashboard");
+      setIsSubmitting(true);
+      try {
+        const result = await register(name, email, password, birthDate, phone);
+        if (!result.success || !result.user) {
+          setErrorMsg(result.error || "Erro ao realizar cadastro.");
+          setIsSubmitting(false);
+          return;
+        }
+        if (result.user.role === "admin") {
+          router.push("/admin");
+        } else {
+          router.push("/dashboard");
+        }
+      } catch (err) {
+        setErrorMsg("Erro ao realizar cadastro. Tente novamente.");
+        setIsSubmitting(false);
       }
     }
   };
@@ -304,20 +315,46 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                    <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
-                    Processando...
-                  </span>
-                ) : (
-                  <>
-                    {viewMode === "login" && "Acessar Conta"}
-                    {viewMode === "register" && "Criar Minha Conta"}
-                    {viewMode === "forgot" && "Enviar Link de Redefinição"}
-                  </>
-                )}
-              </button>
+              {viewMode !== "login" ? (
+                <div className={styles.buttonGroup}>
+                  <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                        <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
+                        Processando...
+                      </span>
+                    ) : (
+                      <>
+                        {viewMode === "register" && "Criar Minha Conta"}
+                        {viewMode === "forgot" && "Enviar Link de Redefinição"}
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.cancelBtn}
+                    onClick={() => {
+                      setViewMode("login");
+                      setErrorMsg("");
+                      setSuccessMsg("");
+                    }}
+                  >
+                    <ArrowLeft size={18} /> Cancelar (Voltar para Login)
+                  </button>
+                </div>
+              ) : (
+                <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                      <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
+                      Processando...
+                    </span>
+                  ) : (
+                    "Acessar Conta"
+                  )}
+                </button>
+              )}
             </form>
           )}
 

@@ -1680,6 +1680,51 @@
   font-size: 0.95rem;
 }
 
+.finSubTabsRow {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.finSubTabBtn {
+  background: transparent;
+  color: var(--color-text-main);
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.finSubTabBtnActive {
+  background: var(--color-primary-dark) !important;
+  color: #ffffff !important;
+}
+
+.finFilters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.finFilterBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-background);
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
 .agendaList {
   display: flex;
   flex-direction: column;
@@ -2097,69 +2142,163 @@
   }
 
   /* Financial Tab */
+  .finSubTabsRow {
+    gap: 8px !important;
+    margin-bottom: 16px !important;
+    padding-bottom: 8px !important;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap !important;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .finSubTabsRow::-webkit-scrollbar {
+    display: none;
+  }
+
+  .finSubTabBtn {
+    padding: 8px 14px !important;
+    font-size: 0.82rem !important;
+    border-radius: 10px !important;
+    flex-shrink: 0;
+  }
+
+  .finSubTabBtn svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
   .statsGrid {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 6px;
-    margin-bottom: 16px;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 16px !important;
   }
 
   .statCard {
     min-width: 0;
     width: 100%;
     box-sizing: border-box;
-    padding: 8px 4px;
-    gap: 4px;
-    border-radius: 10px;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
+    padding: 10px 12px !important;
+    gap: 10px !important;
+    border-radius: 12px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    text-align: left !important;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
 
   .statIcon {
-    width: 26px;
-    height: 26px;
-    margin: 0 auto;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important;
     flex-shrink: 0;
   }
 
   .statIcon svg {
-    width: 14px;
-    height: 14px;
+    width: 17px !important;
+    height: 17px !important;
   }
 
   .statText {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start !important;
     justify-content: center;
     width: 100%;
     min-width: 0;
+    text-align: left !important;
   }
 
   .statValue {
-    font-size: 0.8rem;
-    font-weight: 800;
-    line-height: 1.1;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    line-height: 1.15 !important;
     color: #0f172a;
     white-space: nowrap;
   }
 
   .statLabel {
-    font-size: 0.6rem;
-    line-height: 1.1;
+    font-size: 0.7rem !important;
+    line-height: 1.2 !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     color: #64748b;
     width: 100%;
-    text-align: center;
+    text-align: left !important;
+  }
+
+  .finFilters {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 4px !important;
+    width: 100% !important;
+    margin-top: 10px !important;
+  }
+
+  .finFilterBox {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 4px !important;
+    padding: 6px 6px !important;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-background);
+  }
+
+  .finFilterBox svg {
+    width: 13px !important;
+    height: 13px !important;
+    flex-shrink: 0;
+  }
+
+  .finFilterBox select {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 0.72rem !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 0 !important;
   }
 
   .cardTitle {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    font-size: 1rem !important;
+    margin-bottom: 16px !important;
+  }
+
+  .workDaysSelector {
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 3px !important;
+    margin-top: 6px !important;
+    width: 100% !important;
+    display: grid !important;
+  }
+
+  .workDayBtn {
+    padding: 7px 1px !important;
+    font-size: 0.72rem !important;
+    border-radius: 8px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
   }
 
   .agendaItem {
@@ -2208,7 +2347,53 @@
 
   .loyaltyKpiGrid {
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 10px;
+    gap: 8px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .loyaltyKpiCard {
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+    gap: 8px !important;
+    align-items: flex-start !important;
+  }
+
+  .loyaltyKpiIconContainer {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    margin-top: 1px !important;
+  }
+
+  .loyaltyKpiIconContainer svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .loyaltyKpiTitle {
+    font-size: 0.72rem !important;
+    color: #4b5563 !important;
+    font-weight: 500 !important;
+    margin-bottom: 2px !important;
+    line-height: 1.15 !important;
+  }
+
+  .loyaltyKpiValue {
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+    line-height: 1.05 !important;
+  }
+
+  .loyaltyKpiSub {
+    font-size: 0.68rem !important;
+    font-weight: 500 !important;
+    margin-top: 2px !important;
+    line-height: 1.15 !important;
+  }
+
+  .loyaltyCard {
+    padding: 16px !important;
+    border-radius: 14px !important;
   }
 
   .loyaltyMiddleGrid, .loyaltyBottomGrid {
@@ -2295,6 +2480,71 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
   margin-bottom: 32px;
+}
+
+.loyaltyKpiCard {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
+}
+
+.loyaltyKpiIconContainer {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  background-color: #fff5f0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.loyaltyKpiContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.loyaltyKpiTitle {
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 500;
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.loyaltyKpiValueWrapper {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.loyaltyKpiValue {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1;
+}
+
+.loyaltyKpiSub {
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-top: 4px;
+  line-height: 1.2;
+}
+
+.loyaltyCard {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f3f4f6;
 }
 
 .loyaltyMiddleGrid {
@@ -2442,6 +2692,39 @@
   border-color: #f97316;
   background: white;
   box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.1);
+}
+
+.workDaysSelector {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+  width: 100%;
+}
+
+.workDayBtn {
+  width: 100%;
+  padding: 8px 4px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.workDayBtnActive {
+  border-color: var(--color-primary-dark, #a85145) !important;
+  background: var(--color-primary-dark, #a85145) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(168, 81, 69, 0.25);
 }
 
 .modalFooter {

@@ -432,17 +432,18 @@ export default function AdminDashboard() {
     setShowEditClientModal(true);
   };
 
-  const handleSaveClient = (e: React.FormEvent) => {
+  const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientForm.name || !clientForm.email) {
       alert("Por favor, preencha o Nome e E-mail do cliente.");
       return;
     }
 
+    let res: { success: boolean; error?: string };
     if (clientForm.id) {
-      updateClient(clientForm.id, clientForm);
+      res = await updateClient(clientForm.id, clientForm);
     } else {
-      addClient({
+      res = await addClient({
         name: clientForm.name,
         email: clientForm.email,
         phone: clientForm.phone || "",
@@ -451,6 +452,11 @@ export default function AdminDashboard() {
         photoUrl: clientForm.photoUrl || "",
         password: clientForm.password || ""
       });
+    }
+
+    if (!res.success) {
+      alert(res.error || "Erro ao salvar cliente.");
+      return;
     }
 
     // Sincronizar com lista de usuários de autenticação para permitir login do cliente
@@ -494,18 +500,9 @@ export default function AdminDashboard() {
       variant: "danger",
       onConfirm: () => {
         if (client) {
-          const now = new Date();
           appointments.forEach(apt => {
-            if (apt.clientEmail === client.email || apt.clientName === client.name) {
-              const [d, m, y] = apt.date.split('/');
-              const aptDate = new Date(Number(y), Number(m) - 1, Number(d));
-              const aptTime = apt.time || "00:00";
-              const [h, min] = aptTime.split(':');
-              aptDate.setHours(Number(h), Number(min));
-              
-              if (aptDate >= now) {
-                deleteAppointment(apt.id);
-              }
+            if ((client.email && apt.clientEmail?.toLowerCase() === client.email.toLowerCase()) || apt.clientName === client.name) {
+              deleteAppointment(apt.id);
             }
           });
         }
@@ -1513,43 +1510,17 @@ export default function AdminDashboard() {
       {activeTab === "finance" && (
         <div className={styles.mainContent}>
           {/* Subtabs Bar */}
-          <div style={{ display: "flex", gap: "12px", marginBottom: "24px", borderBottom: "2px solid var(--color-border)", paddingBottom: "12px" }}>
+          <div className={styles.finSubTabsRow}>
             <button
               onClick={() => setFinSubTab("transactions")}
-              style={{
-                background: finSubTab === "transactions" ? "var(--color-primary-dark)" : "transparent",
-                color: finSubTab === "transactions" ? "#ffffff" : "var(--color-text-main)",
-                padding: "10px 20px",
-                borderRadius: "12px",
-                fontWeight: 700,
-                fontSize: "0.92rem",
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                transition: "all 0.2s ease"
-              }}
+              className={`${styles.finSubTabBtn} ${finSubTab === "transactions" ? styles.finSubTabBtnActive : ""}`}
             >
               <PieChart size={18} /> Transações & Cobranças
             </button>
 
             <button
               onClick={() => setFinSubTab("mp_config")}
-              style={{
-                background: finSubTab === "mp_config" ? "var(--color-primary-dark)" : "transparent",
-                color: finSubTab === "mp_config" ? "#ffffff" : "var(--color-text-main)",
-                padding: "10px 20px",
-                borderRadius: "12px",
-                fontWeight: 700,
-                fontSize: "0.92rem",
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                transition: "all 0.2s ease"
-              }}
+              className={`${styles.finSubTabBtn} ${finSubTab === "mp_config" ? styles.finSubTabBtnActive : ""}`}
             >
               <CreditCard size={18} /> Configuração Mercado Pago
               {mpIsConfigured && (
@@ -1559,27 +1530,14 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => setFinSubTab("mp_guide")}
-              style={{
-                background: finSubTab === "mp_guide" ? "var(--color-primary-dark)" : "transparent",
-                color: finSubTab === "mp_guide" ? "#ffffff" : "var(--color-text-main)",
-                padding: "10px 20px",
-                borderRadius: "12px",
-                fontWeight: 700,
-                fontSize: "0.92rem",
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                transition: "all 0.2s ease"
-              }}
+              className={`${styles.finSubTabBtn} ${finSubTab === "mp_guide" ? styles.finSubTabBtnActive : ""}`}
             >
               <Sparkles size={18} /> Passo a Passo da API
             </button>
           </div>
 
           {/* Metrics Overview */}
-          <div className={styles.statsGrid} style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+          <div className={styles.statsGrid}>
             <div className={styles.statCard}>
               <div className={styles.statIcon} style={{ background: "var(--color-primary-light)", color: "var(--color-primary-dark)" }}><TrendingUp size={26} /></div>
               <div className={styles.statText}>
@@ -1619,29 +1577,29 @@ export default function AdminDashboard() {
                   Gestão de Transações & Cobranças
                 </div>
                 
-                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--color-background)", padding: "4px 12px", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
+                <div className={styles.finFilters}>
+                  <div className={styles.finFilterBox}>
                     <Users size={16} color="var(--color-text-muted)" />
                     <select 
                       value={finClientFilter}
                       onChange={(e) => setFinClientFilter(e.target.value)}
                       style={{ background: "transparent", border: "none", outline: "none", fontSize: "0.9rem", color: "var(--color-text-main)", cursor: "pointer" }}
                     >
-                      <option value="all">Todos os Clientes</option>
+                      <option value="all">Clientes</option>
                       {uniqueClientsList.map(c => (
                         <option key={c.email} value={c.email}>{c.name}</option>
                       ))}
                     </select>
                   </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--color-background)", padding: "4px 12px", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
+                  <div className={styles.finFilterBox}>
                     <Filter size={16} color="var(--color-text-muted)" />
                     <select 
                       value={finDateFilter}
                       onChange={(e) => setFinDateFilter(e.target.value as any)}
                       style={{ background: "transparent", border: "none", outline: "none", fontSize: "0.9rem", color: "var(--color-text-main)", cursor: "pointer" }}
                     >
-                      <option value="all">Todo o Período</option>
+                      <option value="all">Período</option>
                       <option value="today">Hoje ({selectedDateStr})</option>
                       <option value="yesterday">Ontem</option>
                       <option value="last_7_days">Últimos 7 dias</option>
@@ -1652,14 +1610,14 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--color-background)", padding: "4px 12px", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
+                  <div className={styles.finFilterBox}>
                     <Filter size={16} color="var(--color-text-muted)" />
                     <select 
                       value={finStatusFilter}
                       onChange={(e) => setFinStatusFilter(e.target.value as any)}
                       style={{ background: "transparent", border: "none", outline: "none", fontSize: "0.9rem", color: "var(--color-text-main)", cursor: "pointer" }}
                     >
-                      <option value="all">Todos os Status</option>
+                      <option value="all">Status</option>
                       <option value="paid">Todos Pagos</option>
                       <option value="paid_pix">Pago no Pix</option>
                       <option value="paid_credit">Pago no Crédito</option>
@@ -2221,7 +2179,7 @@ export default function AdminDashboard() {
 
                 <div style={{ marginTop: "14px" }}>
                   <label className={styles.modernLabel}>Dias de Funcionamento na Semana</label>
-                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "6px" }}>
+                  <div className={styles.workDaysSelector}>
                     {[
                       { id: 1, label: "Seg" },
                       { id: 2, label: "Ter" },
@@ -2243,18 +2201,7 @@ export default function AdminDashboard() {
                               : [...currentDays, day.id];
                             setSiteForm({ ...siteForm, workDays: updated });
                           }}
-                          style={{
-                            padding: "8px 12px",
-                            borderRadius: "10px",
-                            border: isSelected ? "1px solid var(--color-primary-dark, #a85145)" : "1px solid #cbd5e1",
-                            background: isSelected ? "var(--color-primary-dark, #a85145)" : "#f8fafc",
-                            color: isSelected ? "#ffffff" : "#475569",
-                            fontWeight: 700,
-                            fontSize: "0.85rem",
-                            cursor: "pointer",
-                            transition: "all 0.2s ease",
-                            boxShadow: isSelected ? "0 2px 8px rgba(168, 81, 69, 0.25)" : "none"
-                          }}
+                          className={`${styles.workDayBtn} ${isSelected ? styles.workDayBtnActive : ""}`}
                         >
                           {day.label}
                         </button>
@@ -2878,16 +2825,16 @@ export default function AdminDashboard() {
               { title: "Resgates totais", value: claimsThisMonth.toString(), sub: "Prêmios resgatados", subColor: "#16a34a", icon: <RefreshCw size={24} color="#f97316" /> },
               { title: "Taxa de conclusão", value: `${completionRate}%`, sub: "Clientes premiados", subColor: "#6b7280", icon: <PieChart size={24} color="#f97316" /> },
             ].map((kpi, idx) => (
-              <div key={idx} style={{ backgroundColor: "#ffffff", borderRadius: "16px", padding: "24px", display: "flex", alignItems: "center", gap: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #f3f4f6" }}>
-                <div style={{ width: "56px", height: "56px", backgroundColor: "#fff5f0", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div key={idx} className={styles.loyaltyKpiCard}>
+                <div className={styles.loyaltyKpiIconContainer}>
                   {kpi.icon}
                 </div>
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ fontSize: "0.85rem", color: "#6b7280", fontWeight: 500, marginBottom: "4px" }}>{kpi.title}</span>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: "12px" }}>
-                    <span style={{ fontSize: "1.8rem", fontWeight: 700, color: "#111827", lineHeight: 1 }}>{kpi.value}</span>
+                <div className={styles.loyaltyKpiContent}>
+                  <span className={styles.loyaltyKpiTitle}>{kpi.title}</span>
+                  <div className={styles.loyaltyKpiValueWrapper}>
+                    <span className={styles.loyaltyKpiValue}>{kpi.value}</span>
                   </div>
-                  <span style={{ fontSize: "0.85rem", color: kpi.subColor, fontWeight: 500, marginTop: "4px" }}>{kpi.sub}</span>
+                  <span className={styles.loyaltyKpiSub} style={{ color: kpi.subColor }}>{kpi.sub}</span>
                 </div>
               </div>
             ))}
@@ -2897,7 +2844,7 @@ export default function AdminDashboard() {
           <div className={styles.loyaltyMiddleGrid}>
             
             {/* Recompensa ativa */}
-            <div style={{ backgroundColor: "#ffffff", borderRadius: "16px", padding: "32px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #f3f4f6" }}>
+            <div className={styles.loyaltyCard}>
               <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#111827", marginBottom: "24px", marginTop: 0 }}>Recompensa ativa</h3>
               
               <div style={{ textAlign: "center", marginBottom: "32px" }}>
@@ -2938,7 +2885,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Info pills */}
-              <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginBottom: "32px", marginTop: "48px" }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginBottom: "32px", marginTop: "48px", flexWrap: "wrap" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "#fff5f0", padding: "8px 16px", borderRadius: "24px", color: "#57534e", fontSize: "0.85rem", fontWeight: 500 }}>
                   <Users size={14} color="#f97316" /> 1 serviço = 1 carimbo
                 </div>
@@ -2958,7 +2905,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Configuração rápida */}
-            <div style={{ backgroundColor: "#ffffff", borderRadius: "16px", padding: "32px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #f3f4f6", display: "flex", flexDirection: "column" }}>
+            <div className={styles.loyaltyCard} style={{ display: "flex", flexDirection: "column" }}>
               <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#111827", marginBottom: "24px", marginTop: 0 }}>Configuração rápida</h3>
               
               <div style={{ display: "flex", flexDirection: "column", gap: "20px", flex: 1 }}>
@@ -3005,7 +2952,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Clientes mais próximos do prêmio */}
-          <div style={{ backgroundColor: "#ffffff", borderRadius: "16px", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #f3f4f6", marginBottom: "32px" }}>
+          <div className={styles.loyaltyCard} style={{ marginBottom: "32px" }}>
             <div className={styles.loyaltyHeaderRow} style={{ marginBottom: "24px" }}>
               <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#111827", margin: 0 }}>Clientes mais próximos do prêmio</h3>
               <div className={styles.loyaltySearchFilter}>
@@ -3170,8 +3117,8 @@ export default function AdminDashboard() {
                 <div className={styles.emptyState}>Nenhum cliente registrado ainda.</div>
               ) : (
                 clients.map(client => {
-                  const clientAppts = appointments.filter(a => a.clientEmail === client.email);
-                  const ltv = clientAppts.filter(a => a.status === 'completed' || a.paymentStatus.includes('paid')).reduce((acc, curr) => acc + curr.price, 0);
+                  const clientAppts = appointments.filter(a => a.clientEmail?.toLowerCase() === client.email?.toLowerCase());
+                  const ltv = clientAppts.filter(a => a.status !== 'canceled' && (a.status === 'completed' || a.paymentStatus.includes('paid'))).reduce((acc, curr) => acc + curr.price, 0);
 
                   return (
                     <div key={client.id} className={styles.clientCardItem}>
@@ -3252,7 +3199,7 @@ export default function AdminDashboard() {
                 .filter(a => a.clientEmail?.toLowerCase() === client.email?.toLowerCase())
                 .sort((a, b) => parseDateString(b.date, b.time) - parseDateString(a.date, a.time));
 
-              const ltv = clientAppts.filter(a => a.status === 'completed' || a.paymentStatus.includes('paid')).reduce((acc, curr) => acc + curr.price, 0);
+              const ltv = clientAppts.filter(a => a.status !== 'canceled' && (a.status === 'completed' || a.paymentStatus.includes('paid'))).reduce((acc, curr) => acc + curr.price, 0);
               const stats = getUserStats(client.email);
 
               return (

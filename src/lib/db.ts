@@ -73,6 +73,8 @@ export async function ensureTablesExist(sql: any) {
 
     await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';`;
 
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS clients_email_lower_idx ON clients (LOWER(email));`;
+
     await sql`
       CREATE TABLE IF NOT EXISTS loyalty_settings (
         id TEXT PRIMARY KEY,

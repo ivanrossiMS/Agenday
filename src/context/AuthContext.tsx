@@ -19,7 +19,7 @@ type AuthContextType = {
   login: (email: string, pass: string) => Promise<{ success: boolean; user?: User; error?: string }>;
   loginWithGoogle: (googleUser: { name: string; email: string; picture?: string; sub?: string }) => Promise<{ success: boolean; user?: User; error?: string }>;
   logout: () => void;
-  register: (name: string, email: string, pass: string, birthDate?: string, phone?: string) => User;
+  register: (name: string, email: string, pass: string, birthDate?: string, phone?: string) => Promise<{ success: boolean; user?: User; error?: string }>;
   updateProfile: (data: Partial<User>) => void;
   inactivateProfile: () => void;
   deleteProfile: () => void;
@@ -54,14 +54,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const res = await fetch("/api/clients");
         const json = await res.json();
-        if (json.data && Array.isArray(json.data)) {
+        if (json.configured && Array.isArray(json.data)) {
           const stored = localStorage.getItem("@agenday:user");
           if (stored) {
             const currentUser: User = JSON.parse(stored);
-            const matchedClient = json.data.find(
-              (c: any) => c.email && c.email.toLowerCase() === currentUser.email.toLowerCase()
-            );
-            if (matchedClient) {
+            if (currentUser.role === "client") {
+              const matchedClient = json.data.find(
+                (c: any) => c.email && c.email.toLowerCase() === currentUser.email.toLowerCase()
+              );
+              // Se o cliente foi inativado ou excluído do banco de dados, encerra a sessão
+              if (!matchedClient || matchedClient.status === "inactive") {
+                setUser(null);
+                localStorage.removeItem("@agenday:user");
+                return;
+              }
               const syncedUser: User = {
                 ...currentUser,
                 name: matchedClient.name || currentUser.name,
@@ -69,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 birthDate: matchedClient.birth_date || currentUser.birthDate,
                 photo: matchedClient.photo_url || currentUser.photo,
                 password: matchedClient.password || currentUser.password,
+                status: matchedClient.status || "active",
               };
               setUser(syncedUser);
               localStorage.setItem("@agenday:user", JSON.stringify(syncedUser));
@@ -115,8 +122,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true, user: loggedUser };
       }
 
-      // Se a API retornou erro específico de senha incorreta
-      if (json.message && json.message !== "USER_NOT_FOUND") {
+      // Se a API respondeu
+      if (json.message) {
+        if (json.message === "USER_NOT_FOUND") {
+          return { success: false, error: "Usuário não encontrado. Por favor, faça seu cadastro no botão 'Cadastre-se aqui'." };
+        }
         return { success: false, error: json.message };
       }
     } catch (err) {
@@ -166,6 +176,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (foundUser) {
+      if (foundUser.status === "inactive") {
+        return { success: false, error: "Seu cadastro está inativo. O acesso ao sistema foi bloqueado pela administração." };
+      }
+
       // Se o usuário tem senha gravada, VALIDA se a senha bate!
       if (foundUser.password && foundUser.password.trim() !== "") {
         if (foundUser.password !== pass) {
@@ -195,6 +209,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (json.data && Array.isArray(json.data)) {
         const found = json.data.find((c: any) => c.email && c.email.toLowerCase() === lowerEmail);
         if (found) {
+          if (found.status === "inactive") {
+            return { success: false, error: "Seu cadastro está inativo. O acesso ao sistema foi bloqueado pela administração." };
+          }
           matchedUser = {
             id: found.id,
             name: found.name || googleUser.name,
@@ -256,12 +273,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("@agenday:user");
   };
 
-  const register = (name: string, email: string, pass: string, birthDate?: string, phone?: string) => {
+  const register = async (name: string, email: string, pass: string, birthDate?: string, phone?: string): Promise<{ success: boolean; user?: User; error?: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. Validar via API se o e-mail já existe no banco de dados
+    try {
+      const res = await fetch("/api/clients");
+      const json = await res.json();
+      if (json.configured && Array.isArray(json.data)) {
+        const existsInDb = json.data.some((c: any) => c.email && c.email.trim().toLowerCase() === cleanEmail);
+        if (existsInDb) {
+          return { success: false, error: "Este e-mail já está cadastrado. Por favor, faça seu login com a sua senha ou recupere o acesso." };
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao verificar duplicidade de e-mail via API:", err);
+    }
+
+    // 2. Validar se existe na lista local do navegador
+    const usersListStr = localStorage.getItem("@agenday:users_list");
+    let usersList: User[] = [];
+    if (usersListStr) {
+      try { usersList = JSON.parse(usersListStr); } catch (e) {}
+    }
+    const existsLocally = usersList.some(u => u.email.trim().toLowerCase() === cleanEmail);
+    if (existsLocally) {
+      return { success: false, error: "Este e-mail já está cadastrado. Por favor, faça seu login com a sua senha ou recupere o acesso." };
+    }
+
     const newId = "client_" + Date.now();
     const newUser: User = { 
       id: newId, 
       name, 
-      email, 
+      email: cleanEmail, 
       role: "client", 
       birthDate: birthDate || "", 
       phone: phone || "", 
@@ -269,36 +313,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status: "active" 
     };
 
-    // 1. Atualizar usuário ativo
+    // 3. Salvar no banco PostgreSQL via API
+    try {
+      const apiRes = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: newId,
+          name,
+          email: cleanEmail,
+          phone: phone || "",
+          birthDate: birthDate || "",
+          status: "active",
+          password: pass
+        })
+      });
+      const apiJson = await apiRes.json();
+      if (!apiRes.ok || apiJson.success === false) {
+        return { success: false, error: apiJson.message || "Erro ao registrar o e-mail no sistema." };
+      }
+    } catch (err) {
+      console.error("Erro ao registrar cliente via API:", err);
+    }
+
+    // 4. Salvar usuário logado e atualizar a lista local
     setUser(newUser);
     localStorage.setItem("@agenday:user", JSON.stringify(newUser));
 
-    // 2. Salvar na lista de usuários cadastrados
-    const usersListStr = localStorage.getItem("@agenday:users_list");
-    let usersList: User[] = [];
-    if (usersListStr) {
-      try { usersList = JSON.parse(usersListStr); } catch (e) {}
-    }
-    usersList = usersList.filter(u => u.email.toLowerCase() !== email.toLowerCase());
+    usersList = usersList.filter(u => u.email.toLowerCase() !== cleanEmail);
     usersList.push(newUser);
     localStorage.setItem("@agenday:users_list", JSON.stringify(usersList));
 
-    // 3. Salvar no banco PostgreSQL via API (incluindo a senha)
-    fetch("/api/clients", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: newId,
-        name,
-        email,
-        phone: phone || "",
-        birthDate: birthDate || "",
-        status: "active",
-        password: pass
-      })
-    }).catch(err => console.error("Erro ao registrar cliente via API:", err));
-
-    return newUser;
+    return { success: true, user: newUser };
   };
 
   const updateProfile = (data: Partial<User>) => {
