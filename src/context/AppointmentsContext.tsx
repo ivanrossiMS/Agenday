@@ -284,7 +284,11 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
     const target = appointments.find(a => a.id === id);
     if (!target) return;
     const updated = { ...target, status };
-    setAppointments(prev => prev.map(a => a.id === id ? updated : a));
+    setAppointments(prev => {
+      const next = prev.map(a => a.id === id ? updated : a);
+      localStorage.setItem("@agenday:appointments", JSON.stringify(next));
+      return next;
+    });
 
     try {
       await fetch("/api/appointments", {

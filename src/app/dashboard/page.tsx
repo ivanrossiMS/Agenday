@@ -250,14 +250,13 @@ export default function DashboardPage() {
   // Agendamentos futuros ou do dia atual (com carência de 2h)
   const futureAppts = activeAppts.filter(a => parseApptTimestamp(a.date, a.time) >= nowTs - 7200000);
 
-  // Seleciona o agendamento de data MAIS PRÓXIMA no futuro. Se não houver no futuro, pega o mais recente.
+  // Seleciona o agendamento de data MAIS PRÓXIMA no futuro (ativo e não cancelado)
   const nextAppt = futureAppts.length > 0 
     ? [...futureAppts].sort((a, b) => parseApptTimestamp(a.date, a.time) - parseApptTimestamp(b.date, b.time))[0]
-    : [...activeAppts].sort((a, b) => parseApptTimestamp(b.date, b.time) - parseApptTimestamp(a.date, a.time))[0];
+    : undefined;
 
-  // Histórico Recente: exibe os demais agendamentos do cliente (além do principal em destaque)
-  const otherAppts = myAppts.filter(a => a.id !== nextAppt?.id);
-  const historyAppts = otherAppts.length > 0 ? otherAppts : (nextAppt ? [nextAppt] : []);
+  // Histórico Recente: exibe os demais agendamentos do cliente (além do próximo em destaque)
+  const historyAppts = myAppts.filter(a => a.id !== nextAppt?.id);
 
 
   // Matched real services & consecutive time slots for each procedure

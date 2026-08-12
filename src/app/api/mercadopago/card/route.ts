@@ -106,6 +106,23 @@ export async function POST(req: Request) {
         description: `Agendamento #${appointmentId} - ${serviceName || "Serviço Agenday"}`,
         installments: Number(installments) || 1,
         payment_method_id: detectedMethod,
+        binary_mode: true,
+        statement_descriptor: "FRANMARINHO",
+        additional_info: {
+          items: [
+            {
+              id: String(appointmentId || Date.now()),
+              title: serviceName ? serviceName.slice(0, 128) : "Agendamento de Serviço",
+              description: `Agendamento de beleza #${appointmentId}`,
+              quantity: 1,
+              unit_price: Number(amount)
+            }
+          ],
+          payer: {
+            first_name: firstName,
+            last_name: lastName
+          }
+        },
         payer: {
           email: clientEmail || "cliente@agenday.com",
           first_name: firstName,
@@ -132,22 +149,23 @@ export async function POST(req: Request) {
         mpStatus = mpData.status || "approved";
         statusDetail = mpData.status_detail || "";
 
-        const cleanCard = (cardNumber || "").replace(/\D/g, "");
-        const isTestCard = [
-          "5336750250611799",
-          "4242424242424242",
-          "5031755734530634"
-        ].includes(cleanCard) || cleanCard.startsWith("533675") || cleanCard.startsWith("424242");
-
         if (mpStatus === "rejected") {
           let causeMsg = "Pagamento recusado pela operadora do cartão.";
-          if (statusDetail === "cc_rejected_insufficient_amount") causeMsg = "Saldo insuficiente no cartão.";
-          else if (statusDetail === "cc_rejected_bad_filled_security_code") causeMsg = "Código de segurança (CVV) incorreto.";
-          else if (statusDetail === "cc_rejected_bad_filled_date") causeMsg = "Data de validade incorreta.";
-          else if (statusDetail === "cc_rejected_bad_filled_other") causeMsg = "Por favor, verifique os dados do cartão.";
-          else if (statusDetail === "cc_rejected_call_for_authorize") causeMsg = "Pagamento requer autorização da sua instituição financeira.";
-          else if (statusDetail === "cc_rejected_high_risk") causeMsg = "Pagamento recusado por segurança do Mercado Pago. Tente outro cartão ou Pix.";
-          else if (statusDetail === "cc_rejected_other_reason") causeMsg = "Pagamento recusado pela operadora. Verifique se o cartão é válido ou escolha Pix.";
+          if (statusDetail === "cc_rejected_high_risk") {
+            causeMsg = "Recusado pelos controles de segurança do Mercado Pago (O Mercado Pago não autoriza compras realizadas no mesmo celular/computador/IP da conta vendedora para prevenir autofinanciamento. Tente por outro celular/Wi-Fi ou via Pix).";
+          } else if (statusDetail === "cc_rejected_insufficient_amount") {
+            causeMsg = "Saldo ou limite insuficiente no cartão de crédito.";
+          } else if (statusDetail === "cc_rejected_bad_filled_security_code") {
+            causeMsg = "Código de segurança (CVV) incorreto.";
+          } else if (statusDetail === "cc_rejected_bad_filled_date") {
+            causeMsg = "Data de validade do cartão incorreta.";
+          } else if (statusDetail === "cc_rejected_bad_filled_other") {
+            causeMsg = "Dados do cartão incorretos. Por favor, verifique o número, validade e CVV.";
+          } else if (statusDetail === "cc_rejected_call_for_authorize") {
+            causeMsg = "Pagamento requer autorização do banco emissor do seu cartão.";
+          } else if (statusDetail === "cc_rejected_other_reason") {
+            causeMsg = "Pagamento recusado pela operadora. Verifique se o cartão é válido ou utilize o Pix.";
+          }
 
           return NextResponse.json({ error: causeMsg, statusDetail, status: mpStatus }, { status: 400 });
         }
