@@ -585,6 +585,11 @@ export default function DashboardPage() {
                     <CheckCircle2 size={16} className={styles.alertIconGreen} />
                     <span><strong>Confirmado pelo Salão!</strong> Seu horário está reservado e garantido.</span>
                   </>
+                ) : nextAppt.paymentStatus?.includes("paid") ? (
+                  <>
+                    <CheckCircle2 size={16} className={styles.alertIconGreen} />
+                    <span><strong>Pagamento Recebido com Sucesso!</strong> O seu agendamento está em análise e aguarda a confirmação final da equipe.</span>
+                  </>
                 ) : (
                   <>
                     <Clock size={16} className={styles.alertIconAmber} />
@@ -1207,34 +1212,6 @@ export default function DashboardPage() {
                   >
                     {dashPixData.copied ? <CheckCircle2 size={18} /> : <QrCode size={18} />}
                     <span>{dashPixData.copied ? "Código Pix Copiado!" : "Copiar Código Pix"}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (payingAppt) {
-                        await fetch(`/api/mercadopago/status?appointment_id=${payingAppt.id}&payment_id=${dashPixData.paymentId}&simulate=true`);
-                        updatePayment(payingAppt.id, 'paid_pix');
-                        updateStatus(payingAppt.id, 'confirmed');
-                      }
-                      setPayingAppt(null);
-                      setDashPixData(null);
-                      alert("🎉 Pagamento confirmado com sucesso!");
-                    }}
-                    style={{
-                      width: "100%",
-                      background: "#0f172a",
-                      border: "none",
-                      color: "#ffffff",
-                      marginTop: "12px",
-                      padding: "12px",
-                      borderRadius: "12px",
-                      fontSize: "0.88rem",
-                      fontWeight: 700,
-                      cursor: "pointer"
-                    }}
-                  >
-                    Já Paguei / Simular Aprovação Instantânea
                   </button>
                 </div>
               )}

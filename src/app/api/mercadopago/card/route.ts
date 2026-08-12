@@ -226,7 +226,11 @@ export async function POST(req: Request) {
                 mp_payment_method = 'credit_card',
                 mp_status = ${mpStatus},
                 payment_status = ${paymentStatus},
-                status = ${isPaid && config.autoConfirm ? 'confirmed' : 'pending'}
+                status = CASE 
+                  WHEN status = 'confirmed' THEN 'confirmed'
+                  WHEN status = 'canceled' THEN 'canceled'
+                  ELSE 'pending'
+                END
             WHERE id = ${Number(appointmentId)}
           `;
         } else if (date && time && serviceName) {
@@ -237,7 +241,7 @@ export async function POST(req: Request) {
             )
             VALUES (
               ${Number(appointmentId)}, ${date}, ${time}, ${endTime || null}, ${serviceName}, ${Number(amount) || 0},
-              'confirmed', 'paid_credit', ${clientName || ''}, ${clientEmail || ''},
+              'pending', 'paid_credit', ${clientName || ''}, ${clientEmail || ''},
               ${mpPaymentId}, 'credit_card', ${mpStatus}
             )
           `;

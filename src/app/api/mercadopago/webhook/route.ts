@@ -64,7 +64,11 @@ export async function POST(req: Request) {
         UPDATE appointments 
         SET mp_status = ${mpStatus},
             payment_status = ${newPaymentStatus},
-            status = ${isPaid && config.autoConfirm ? 'confirmed' : 'pending'}
+            status = CASE 
+              WHEN status = 'confirmed' THEN 'confirmed'
+              WHEN status = 'canceled' THEN 'canceled'
+              ELSE 'pending'
+            END
         WHERE mp_payment_id = ${strPaymentId}
         RETURNING id
       `;
@@ -99,11 +103,15 @@ export async function POST(req: Request) {
               SET mp_payment_id = ${strPaymentId},
                   mp_status = ${mpStatus},
                   payment_status = ${newPaymentStatus},
-                  status = ${isPaid && config.autoConfirm ? 'confirmed' : 'pending'}
+                  status = CASE 
+                    WHEN status = 'confirmed' THEN 'confirmed'
+                    WHEN status = 'canceled' THEN 'canceled'
+                    ELSE 'pending'
+                  END
               WHERE id = ${apptId}
             `;
           } else if (isPaid) {
-            // Create the confirmed appointment in DB if it was paid
+            // Create the appointment in DB with status 'pending' awaiting admin confirmation
             const date = extData?.date || mpData.metadata?.date;
             const time = extData?.time || mpData.metadata?.time;
             const endTime = extData?.endTime || mpData.metadata?.end_time;
@@ -120,7 +128,7 @@ export async function POST(req: Request) {
                 )
                 VALUES (
                   ${apptId}, ${date}, ${time}, ${endTime || null}, ${service}, ${Number(price) || 0},
-                  'confirmed', ${newPaymentStatus}, ${clientName}, ${clientEmail},
+                  'pending', ${newPaymentStatus}, ${clientName}, ${clientEmail},
                   ${strPaymentId}, ${paymentMethodId || 'pix'}, ${mpStatus}
                 )
               `;

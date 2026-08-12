@@ -227,7 +227,7 @@ function AgendarFlow() {
             endTime: pendingApptData.endTime,
             service: pendingApptData.service,
             price: pendingApptData.price,
-            status: 'confirmed',
+            status: 'pending',
             paymentStatus: 'paid_pix',
             clientName: pendingApptData.clientName,
             clientEmail: pendingApptData.clientEmail,
@@ -414,7 +414,7 @@ function AgendarFlow() {
           endTime: endTime,
           service: servicesStr,
           price: totalPrice,
-          status: 'confirmed',
+          status: 'pending',
           paymentStatus: 'paid_credit',
           clientName: user.name,
           clientEmail: user.email,
@@ -871,56 +871,6 @@ function AgendarFlow() {
                   </>
                 )}
               </button>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  if (pixData?.appointmentId) {
-                    await fetch(`/api/mercadopago/status?appointment_id=${pixData.appointmentId}&payment_id=${pixData.paymentId}&simulate=true`);
-                  }
-                  if (pendingApptData) {
-                    addAppointment({
-                      id: pendingApptData.id,
-                      date: pendingApptData.date,
-                      time: pendingApptData.time,
-                      endTime: pendingApptData.endTime,
-                      service: pendingApptData.service,
-                      price: pendingApptData.price,
-                      status: 'confirmed',
-                      paymentStatus: 'paid_pix',
-                      clientName: pendingApptData.clientName,
-                      clientEmail: pendingApptData.clientEmail,
-                      mpPaymentId: pixData?.paymentId,
-                      mpPaymentMethod: 'pix',
-                      mpStatus: 'approved'
-                    });
-
-                    setConfirmedApptData({
-                      service: pendingApptData.service,
-                      date: pendingApptData.date,
-                      time: pendingApptData.time,
-                      price: pendingApptData.price,
-                      paymentStatus: 'paid_pix'
-                    });
-                  }
-                  setPixModalOpen(false);
-                  setShowSuccessModal(true);
-                }}
-                style={{
-                  width: "100%",
-                  background: "linear-gradient(135deg, #10b981, #059669)",
-                  border: "none",
-                  color: "#ffffff",
-                  marginTop: "14px",
-                  padding: "12px",
-                  borderRadius: "12px",
-                  fontSize: "0.88rem",
-                  fontWeight: 700,
-                  cursor: "pointer"
-                }}
-              >
-                Já Paguei / Simular Aprovação Instantânea
-              </button>
             </div>
           </div>
         )}
@@ -967,10 +917,10 @@ function AgendarFlow() {
               </div>
 
               <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", marginBottom: "8px", letterSpacing: "-0.02em" }}>
-                Agendamento Confirmado!
+                Pagamento Confirmado!
               </h2>
               <p style={{ color: "#64748b", fontSize: "0.92rem", marginBottom: "24px", lineHeight: 1.5 }}>
-                Sua reserva foi concluída com sucesso. Enviamos a confirmação para você!
+                Seu pagamento foi recebido com sucesso. O seu agendamento está em análise e aguarda a confirmação da equipe.
               </p>
 
               {/* Summary Card */}
