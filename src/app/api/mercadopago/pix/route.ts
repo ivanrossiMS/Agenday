@@ -67,6 +67,12 @@ export async function POST(req: Request) {
       } else {
         console.error("Mercado Pago Pix Error:", mpData);
         
+        if (mpData.code === "PA_UNAUTHORIZED_RESULT_FROM_POLICIES" || mpData.message?.includes("UNAUTHORIZED")) {
+          return NextResponse.json({ 
+            error: "Sua conta do Mercado Pago necessita da ativação de credenciais de produção (ou uso da chave de teste 'TEST-'). No painel mercadopago.com.br/developers, clique em 'Ativar Credenciais de Produção' ou copie a chave de 'Credenciais de Teste'." 
+          }, { status: 400 });
+        }
+
         const isUnauthorizedLive = (mpData.message || "").toLowerCase().includes("unauthorized use of live credentials");
         
         if (!isUnauthorizedLive && mpData.message) {
