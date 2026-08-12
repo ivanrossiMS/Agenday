@@ -264,6 +264,50 @@ export default function AdminDashboard() {
     });
   };
 
+  const handleConfirmAndSendWhatsApp = (appt: any) => {
+    if (!appt) return;
+
+    const newStatus = appt.status === 'confirmed' ? 'pending' : 'confirmed';
+    updateStatus(appt.id, newStatus);
+
+    if (selectedDetailAppt && selectedDetailAppt.id === appt.id) {
+      setSelectedDetailAppt(prev => prev ? { ...prev, status: newStatus } : null);
+    }
+
+    if (newStatus === 'confirmed') {
+      const clientObj = clients.find(c => (c.email && appt.clientEmail && c.email.toLowerCase() === appt.clientEmail.toLowerCase()) || c.name === appt.clientName);
+      const rawPhone = clientObj?.phone || appt.clientPhone || appt.phone || "";
+      const cleanPhone = rawPhone.replace(/\D/g, "");
+
+      let paymentText = "Pagar no Salão";
+      if (appt.paymentStatus === "paid_pix") {
+        paymentText = "Pago via Pix";
+      } else if (appt.paymentStatus === "paid_credit") {
+        paymentText = "Pago no Cartão de Crédito";
+      } else if (appt.paymentStatus?.includes("paid")) {
+        paymentText = "Pago Online";
+      }
+
+      const clientName = appt.clientName || clientObj?.name || "Cliente";
+      const service = appt.service || "Serviço";
+      const date = appt.date || "";
+      const time = appt.time ? `${appt.time}${appt.endTime ? ` às ${appt.endTime}` : ''}` : "";
+      const price = appt.price ? Number(appt.price).toFixed(2).replace('.', ',') : "0,00";
+
+      const message = `Olá, ${clientName}! ✨\n\nSeu agendamento no *Fran Marinho | Studio de Beleza* foi *CONFIRMADO* com sucesso! 🎉\n\n📅 *Data:* ${date}\n⏰ *Horário:* ${time}\n💅 *Serviço:* ${service}\n💰 *Valor:* R$ ${price} (${paymentText})\n📍 *Endereço:* Rua Abrão Júlio Rahe, 1801\n\nEstamos te aguardando para te proporcionar uma experiência incrível! 💖\nSe precisar de algo ou remarcar, entre em contato conosco.`;
+
+      const phoneWithDdi = cleanPhone ? (cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone) : "";
+
+      if (phoneWithDdi) {
+        const encodedMsg = encodeURIComponent(message);
+        window.open(`https://wa.me/${phoneWithDdi}?text=${encodedMsg}`, '_blank');
+      } else {
+        const encodedMsg = encodeURIComponent(message);
+        window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
+      }
+    }
+  };
+
   useEffect(() => {
     setVisibleFinancesCount(10);
   }, [finDateFilter, finStatusFilter, finClientFilter]);
@@ -1735,7 +1779,7 @@ export default function AdminDashboard() {
                                   title="Marcar como pago manualmente"
                                   onClick={() => {
                                     updatePayment(apt.id, 'paid_pix');
-                                    updateStatus(apt.id, 'confirmed');
+                                    handleConfirmAndSendWhatsApp(apt);
                                   }}
                                   style={{
                                     background: "#e6f4ea",
@@ -4154,11 +4198,9 @@ export default function AdminDashboard() {
                       <button
                         className={`${styles.detailActionBtn} ${selectedDetailAppt.status === 'confirmed' ? styles.btnPendingAction : styles.btnConfirm}`}
                         onClick={() => {
-                          const newStatus = selectedDetailAppt.status === 'confirmed' ? 'pending' : 'confirmed';
-                          updateStatus(selectedDetailAppt.id, newStatus);
-                          setSelectedDetailAppt(prev => prev ? { ...prev, status: newStatus } : null);
+                          handleConfirmAndSendWhatsApp(selectedDetailAppt);
                         }}
-                        title={selectedDetailAppt.status === 'confirmed' ? 'Marcar como pendente' : 'Confirmar presença do cliente'}
+                        title={selectedDetailAppt.status === 'confirmed' ? 'Marcar como pendente' : 'Confirmar agendamento e notificar no WhatsApp'}
                       >
                         <CheckCircle2 size={16} />
                         <span>{selectedDetailAppt.status === 'confirmed' ? 'Pendente' : 'Confirmar'}</span>
