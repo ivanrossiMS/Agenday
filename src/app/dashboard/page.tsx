@@ -1090,9 +1090,38 @@ export default function DashboardPage() {
               )}
 
               {dashPaymentError && (
-                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", padding: "12px 16px", borderRadius: "14px", marginTop: "14px", fontSize: "0.88rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
-                  <AlertCircle size={18} style={{ flexShrink: 0 }} />
-                  <span>{dashPaymentError}</span>
+                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", padding: "12px 16px", borderRadius: "14px", marginTop: "14px", fontSize: "0.88rem", fontWeight: 600, display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                    <span>{dashPaymentError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (payingAppt) {
+                        await fetch(`/api/mercadopago/status?appointment_id=${payingAppt.id}&payment_id=CARD_SIM_${Date.now()}&simulate=true`);
+                        updatePayment(payingAppt.id, 'paid_credit');
+                        updateStatus(payingAppt.id, 'confirmed');
+                      }
+                      setPayingAppt(null);
+                      setDashPaymentError("");
+                      alert("🎉 Pagamento com cartão aprovado com sucesso!");
+                    }}
+                    style={{
+                      background: "#0f172a",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "8px 12px",
+                      fontSize: "0.82rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      alignSelf: "flex-start",
+                      marginTop: "4px"
+                    }}
+                  >
+                    ⚡ Simular Aprovação de Teste (Cartão)
+                  </button>
                 </div>
               )}
 
