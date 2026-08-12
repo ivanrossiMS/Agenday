@@ -10,7 +10,7 @@ import {
 
   CheckCircle2, DollarSign, FileText, QrCode, Plus, Trash2, Edit3, Image as ImageIcon, Layout, X,
   TrendingUp, PieChart, CreditCard, Filter, Sparkles, ChevronDown, Grid, Palette, Cake, LogOut, UserCircle, Camera, Search, User,
-  Star, RefreshCw, Clock, Send, Eye, Settings, UploadCloud, Lock, Unlock, XCircle, Bell, Power, UserX, UserCheck, Mail, Phone
+  Star, RefreshCw, Clock, Send, Eye, Settings, UploadCloud, Lock, Unlock, XCircle, Bell, Power, UserX, UserCheck, Mail, Phone, AlertCircle
 } from "lucide-react";
 import styles from "./page.module.css";
 import { useAppointments, Appointment } from "@/context/AppointmentsContext";
@@ -109,10 +109,164 @@ export default function AdminDashboard() {
   const [bdaySelectedMonth, setBdaySelectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [bdaySearch, setBdaySearch] = useState<string>("");
 
-  // Financial Filters State
+  // Financial Filters & Pagination State
   const [finDateFilter, setFinDateFilter] = useState<"all" | "today" | "yesterday" | "last_7_days" | "last_30_days" | "this_month" | "last_month" | "this_year">("all");
   const [finStatusFilter, setFinStatusFilter] = useState<"all" | "paid" | "pending" | "paid_pix" | "paid_credit" | "paid_debit" | "open">("all");
   const [finClientFilter, setFinClientFilter] = useState<string>("all");
+  const [visibleFinancesCount, setVisibleFinancesCount] = useState<number>(10);
+  const [isLoadingMoreFinances, setIsLoadingMoreFinances] = useState<boolean>(false);
+
+  // Mercado Pago & Finance Subtabs State
+  const [finSubTab, setFinSubTab] = useState<"transactions" | "mp_config" | "mp_guide">("transactions");
+  const [mpAccessToken, setMpAccessToken] = useState("");
+  const [mpPublicKey, setMpPublicKey] = useState("");
+  const [mpSandbox, setMpSandbox] = useState(true);
+  const [mpAutoConfirm, setMpAutoConfirm] = useState(true);
+  const [mpIsConfigured, setMpIsConfigured] = useState(false);
+  const [mpSaveLoading, setMpSaveLoading] = useState(false);
+  const [mpSaveMsg, setMpSaveMsg] = useState("");
+  const [mpActionId, setMpActionId] = useState<number | null>(null);
+
+  // Load MP settings on mount
+  useEffect(() => {
+    fetch("/api/mercadopago/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          if (data.accessToken) setMpAccessToken(data.accessToken);
+          if (data.publicKey) setMpPublicKey(data.publicKey);
+          if (typeof data.sandbox === "boolean") setMpSandbox(data.sandbox);
+          if (typeof data.autoConfirm === "boolean") setMpAutoConfirm(data.autoConfirm);
+          setMpIsConfigured(data.isConfigured || false);
+        }
+      })
+      .catch(err => console.error("Error fetching MP settings:", err));
+  }, []);
+
+  const handleSaveMpSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMpSaveLoading(true);
+    setMpSaveMsg("");
+    try {
+      const res = await fetch("/api/mercadopago/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessToken: mpAccessToken,
+          publicKey: mpPublicKey,
+          sandbox: mpSandbox,
+          autoConfirm: mpAutoConfirm
+        })
+      });
+      const data = await res.json();
+      setMpSaveLoading(false);
+      if (res.ok && data.success) {
+        setMpSaveMsg("✅ Configurações do Mercado Pago salvas com sucesso!");
+        setMpIsConfigured(Boolean(mpAccessToken && mpAccessToken.length > 10));
+      } else {
+        setMpSaveMsg(`❌ ${data.error || "Erro ao salvar"}`);
+      }
+    } catch (err: any) {
+      setMpSaveLoading(false);
+      setMpSaveMsg("❌ Erro ao conectar com o servidor.");
+    }
+  };
+
+  // Notice & Confirmation Modal State (replaces browser alerts & confirm popups)
+  const [noticeModal, setNoticeModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    type?: "success" | "error" | "info";
+  } | null>(null);
+
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    variant?: "danger" | "warning" | "primary";
+    onConfirm: () => void;
+  } | null>(null);
+
+  const handleSyncMpStatus = async (apptId: number, mpPaymentId?: string) => {
+    setMpActionId(apptId);
+    try {
+      const res = await fetch(`/api/mercadopago/status?appointment_id=${apptId}&payment_id=${mpPaymentId || ''}`);
+      const data = await res.json();
+      setMpActionId(null);
+      if (data.status) {
+        updatePayment(apptId, data.status as any);
+        if (data.isPaid) {
+          updateStatus(apptId, 'confirmed');
+        }
+
+        let statusTitle = "Status Verificado";
+        let statusMsg = "O status do pagamento foi consultado no Mercado Pago.";
+        let modalType: "success" | "info" | "error" = "info";
+
+        if (data.status === "paid_pix") {
+          statusTitle = "Pagamento Confirmado!";
+          statusMsg = "O pagamento via Pix foi recebido e aprovado pelo Mercado Pago. O agendamento está confirmado!";
+          modalType = "success";
+        } else if (data.status === "paid_credit" || data.status === "paid_card") {
+          statusTitle = "Pagamento Confirmado!";
+          statusMsg = "O pagamento via Cartão de Crédito foi aprovado com sucesso. O agendamento está confirmado!";
+          modalType = "success";
+        } else if (data.status === "refunded") {
+          statusTitle = "Pagamento Estornado";
+          statusMsg = "Este pagamento foi reembolsado ao cliente no Mercado Pago.";
+          modalType = "info";
+        } else {
+          statusTitle = "Pagamento em Aberto";
+          statusMsg = "O pagamento ainda está aguardando confirmação do cliente ou do banco.";
+          modalType = "info";
+        }
+
+        setNoticeModal({ open: true, title: statusTitle, message: statusMsg, type: modalType });
+      }
+    } catch (err) {
+      setMpActionId(null);
+      setNoticeModal({ open: true, title: "Falha na Consulta", message: "Não foi possível conectar com o Mercado Pago no momento.", type: "error" });
+    }
+  };
+
+  const handleRefundMp = async (apptId: number, mpPaymentId?: string) => {
+    setConfirmModal({
+      open: true,
+      title: "Estornar Pagamento",
+      message: "Tem certeza que deseja estornar e reembolsar este pagamento no Mercado Pago? O valor retornará ao cliente.",
+      confirmText: "Sim, Estornar",
+      variant: "danger",
+      onConfirm: async () => {
+        setMpActionId(apptId);
+        try {
+          const res = await fetch("/api/mercadopago/refund", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ appointmentId: apptId, paymentId: mpPaymentId })
+          });
+          const data = await res.json();
+          setMpActionId(null);
+          if (res.ok && data.success) {
+            updatePayment(apptId, 'refunded' as any);
+            updateStatus(apptId, 'canceled');
+            setNoticeModal({ open: true, title: "Estorno Realizado!", message: "O valor do agendamento foi estornado com sucesso pelo Mercado Pago.", type: "success" });
+          } else {
+            setNoticeModal({ open: true, title: "Falha no Estorno", message: data.error || "Não foi possível estornar esta cobrança.", type: "error" });
+          }
+        } catch (err: any) {
+          setMpActionId(null);
+          setNoticeModal({ open: true, title: "Erro de Conexão", message: "Falha ao conectar com o serviço de estorno.", type: "error" });
+        }
+      }
+    });
+  };
+
+  useEffect(() => {
+    setVisibleFinancesCount(10);
+  }, [finDateFilter, finStatusFilter, finClientFilter]);
 
   // Loyalty Tab State
   const [loyaltySearch, setLoyaltySearch] = useState("");
@@ -331,27 +485,35 @@ export default function AdminDashboard() {
 
 
   const handleDeleteClient = (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este cliente e todos os seus agendamentos futuros?")) {
-      const client = clients.find(c => c.id === id);
-      if (client) {
-        const now = new Date();
-        appointments.forEach(apt => {
-          if (apt.clientEmail === client.email || apt.clientName === client.name) {
-            const [d, m, y] = apt.date.split('/');
-            const aptDate = new Date(Number(y), Number(m) - 1, Number(d));
-            const aptTime = apt.time || "00:00";
-            const [h, min] = aptTime.split(':');
-            aptDate.setHours(Number(h), Number(min));
-            
-            if (aptDate >= now) {
-              deleteAppointment(apt.id);
+    const client = clients.find(c => c.id === id);
+    setConfirmModal({
+      open: true,
+      title: "Excluir Cliente",
+      message: `Tem certeza que deseja excluir o perfil de ${client?.name || "este cliente"} e cancelar seus agendamentos?`,
+      confirmText: "Sim, Excluir",
+      variant: "danger",
+      onConfirm: () => {
+        if (client) {
+          const now = new Date();
+          appointments.forEach(apt => {
+            if (apt.clientEmail === client.email || apt.clientName === client.name) {
+              const [d, m, y] = apt.date.split('/');
+              const aptDate = new Date(Number(y), Number(m) - 1, Number(d));
+              const aptTime = apt.time || "00:00";
+              const [h, min] = aptTime.split(':');
+              aptDate.setHours(Number(h), Number(min));
+              
+              if (aptDate >= now) {
+                deleteAppointment(apt.id);
+              }
             }
-          }
-        });
+          });
+        }
+        deleteClient(id);
+        setSelectedClientId(null);
+        setNoticeModal({ open: true, title: "Cliente Excluído", message: "O perfil do cliente foi removido com sucesso.", type: "info" });
       }
-      deleteClient(id);
-      setSelectedClientId(null);
-    }
+    });
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -804,7 +966,10 @@ export default function AdminDashboard() {
 
   const finTotal = filteredFinances.reduce((acc, curr) => acc + curr.price, 0);
   const finPaid = filteredFinances.filter(a => a.paymentStatus.includes('paid')).reduce((acc, curr) => acc + curr.price, 0);
+  const finPixTotal = filteredFinances.filter(a => a.paymentStatus === 'paid_pix').reduce((acc, curr) => acc + curr.price, 0);
+  const finCardTotal = filteredFinances.filter(a => a.paymentStatus === 'paid_credit' || (a.paymentStatus as string) === 'paid_card' || a.paymentStatus === 'paid_debit').reduce((acc, curr) => acc + curr.price, 0);
   const finPending = filteredFinances.filter(a => a.paymentStatus === 'open' || (a.paymentStatus as string) === 'pending').reduce((acc, curr) => acc + curr.price, 0);
+  const finRefundTotal = filteredFinances.filter(a => (a.paymentStatus as string) === 'refunded').reduce((acc, curr) => acc + curr.price, 0);
   const activeDayAppointments = dayAppointments.filter(a => a.status !== 'canceled');
 
   const occupiedMins = activeDayAppointments.reduce((acc, curr) => {
@@ -1023,20 +1188,20 @@ export default function AdminDashboard() {
                 <div className={styles.timelineContainer}>
                   {generateTimeline().map((timeSlot) => {
                     const aptsInSlot = getApptsForSlot(timeSlot);
-                    const ongoingAppt = aptsInSlot.length === 0 ? getOngoingApptForSlot(timeSlot) : null;
+                    const activeAptsInSlot = aptsInSlot.filter(apt => apt.status !== 'canceled');
+                    const canceledAptsInSlot = aptsInSlot.filter(apt => apt.status === 'canceled');
+                    const ongoingAppt = activeAptsInSlot.length === 0 ? getOngoingApptForSlot(timeSlot) : null;
                     
-                    // Se não tiver agendamentos começando aqui E tiver um em andamento, não renderiza para não poluir
-                    if (ongoingAppt && aptsInSlot.length === 0) return null;
+                    // Se não tiver agendamentos ativos começando aqui E tiver um em andamento, não renderiza para não poluir
+                    if (ongoingAppt && activeAptsInSlot.length === 0) return null;
                     
                     // Filter handling
-                    const filteredApts = aptsInSlot.filter(apt => {
+                    const filteredApts = activeAptsInSlot.filter(apt => {
                       if (agendaFilter === 'all') return true;
                       if (agendaFilter === 'confirmed') return apt.status === 'confirmed';
                       if (agendaFilter === 'pending') return apt.status === 'pending';
                       return true;
                     });
-                    
-                    if (aptsInSlot.length > 0 && filteredApts.length === 0) return null;
                     
                     // Current time logic for the red line
                     const now = new Date();
@@ -1058,69 +1223,96 @@ export default function AdminDashboard() {
                           )}
                           
                           {filteredApts.length > 0 ? (
-                            filteredApts.map(apt => {
-                              const clientObj = clients.find(c => c.email === apt.clientEmail || c.name.toLowerCase() === apt.clientName.toLowerCase());
-                              const clientPhoto = clientObj?.photoUrl || (clientObj as any)?.photo;
+                            <div>
+                              {filteredApts.map(apt => {
+                                const clientObj = clients.find(c => c.email === apt.clientEmail || c.name.toLowerCase() === apt.clientName.toLowerCase());
+                                const clientPhoto = clientObj?.photoUrl || (clientObj as any)?.photo;
 
-                              return (
-                                <div 
-                                  key={apt.id} 
-                                  className={`${styles.agendaItemTimeline} ${apt.status === 'confirmed' ? styles.confirmed : ''} ${apt.status === 'completed' ? styles.completed : ''} ${apt.status === 'canceled' ? styles.canceled : ''}`}
-                                  onClick={() => setSelectedDetailAppt(apt)}
-                                  title="Clique para ver os detalhes completos do agendamento"
-                                  style={{ cursor: 'pointer' }}
-                                >
-                                  <div className={styles.cardLeft}>
-                                    <div className={styles.cardAvatar}>
-                                      {clientPhoto ? (
-                                        <img src={clientPhoto} alt={apt.clientName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                                      ) : (
-                                        getInitials(apt.clientName)
-                                      )}
-                                    </div>
-                                    <div className={styles.cardDetails}>
-                                      <div className={styles.clientName}>
-                                        {apt.clientName}
-                                        {!clientObj && (
-                                          <span style={{ marginLeft: 8, fontSize: "0.7rem", backgroundColor: "#fef2f2", color: "#ef4444", padding: "2px 6px", borderRadius: "12px", border: "1px solid #fecaca", fontWeight: 600 }}>Excluído</span>
-                                        )}
-                                      </div>
-                                      
-                                      {/* Serviços agendados em texto normal lado a lado */}
-                                      {apt.service && (
-                                        <div className={styles.cardServicesText}>
-                                          {apt.service.split(",").map(s => s.trim()).filter(Boolean).join(" • ")}
-                                        </div>
-                                      )}
-
-
-
-                                      <div className={styles.cardMetaRow}>
-
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#1e293b', fontWeight: 600 }}>
-                                          <CalendarDays size={14} color="#64748b" /> {apt.time} - {apt.endTime || "N/A"}
-                                        </span>
-                                        <span style={{ color: '#64748b' }}>•</span>
-                                        <span style={{ color: '#1e293b', fontWeight: 600 }}>R$ {apt.price},00</span>
-                                      </div>
-                                      <div className={styles.cardBadges}>
-                                        {apt.status === 'confirmed' && <span className={`${styles.badge} ${styles.badgeGreen}`}>Confirmado</span>}
-                                        {apt.status === 'pending' && <span className={`${styles.badge} ${styles.badgeYellow}`}>Pendente</span>}
-                                        {apt.status === 'completed' && <span className={`${styles.badge} ${styles.badgeGray}`}>Concluído</span>}
-                                        {apt.status === 'canceled' && <span className={`${styles.badge} ${styles.badgeRed}`}>Cancelado</span>}
-                                        
-                                        {apt.paymentStatus.includes('paid') ? (
-                                          <span className={`${styles.badge} ${styles.badgeGreen}`}>Pago via {apt.paymentStatus.replace('paid_', '')}</span>
+                                return (
+                                  <div 
+                                    key={apt.id} 
+                                    className={`${styles.agendaItemTimeline} ${apt.status === 'confirmed' ? styles.confirmed : apt.status === 'completed' ? styles.completed : styles.pending}`}
+                                    onClick={() => setSelectedDetailAppt(apt)}
+                                    title="Clique para ver os detalhes completos do agendamento"
+                                    style={{ cursor: 'pointer' }}
+                                  >
+                                    <div className={styles.cardLeft}>
+                                      <div className={styles.cardAvatar}>
+                                        {clientPhoto ? (
+                                          <img src={clientPhoto} alt={apt.clientName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                                         ) : (
-                                          <span className={`${styles.badge} ${styles.badgeYellow}`}>Pagamento pendente</span>
+                                          getInitials(apt.clientName)
                                         )}
+                                      </div>
+                                      <div className={styles.cardDetails}>
+                                        <div className={styles.clientName}>
+                                          {apt.clientName}
+                                          {!clientObj && (
+                                            <span style={{ marginLeft: 8, fontSize: "0.7rem", backgroundColor: "#fef2f2", color: "#ef4444", padding: "2px 6px", borderRadius: "12px", border: "1px solid #fecaca", fontWeight: 600 }}>Excluído</span>
+                                          )}
+                                        </div>
+                                        
+                                        {/* Serviços agendados em texto normal lado a lado */}
+                                        {apt.service && (
+                                          <div className={styles.cardServicesText}>
+                                            {apt.service.split(",").map(s => s.trim()).filter(Boolean).join(" • ")}
+                                          </div>
+                                        )}
+
+                                        <div className={styles.cardMetaRow}>
+                                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#1e293b', fontWeight: 600 }}>
+                                            <CalendarDays size={14} color="#64748b" /> {apt.time} - {apt.endTime || "N/A"}
+                                          </span>
+                                          <span style={{ color: '#64748b' }}>•</span>
+                                          <span style={{ color: '#1e293b', fontWeight: 600 }}>R$ {apt.price},00</span>
+                                        </div>
+                                        <div className={styles.cardBadges}>
+                                          {apt.status === 'confirmed' && <span className={`${styles.badge} ${styles.badgeGreen}`}>Confirmado</span>}
+                                          {apt.status === 'pending' && <span className={`${styles.badge} ${styles.badgeYellow}`}>Pendente</span>}
+                                          {apt.status === 'completed' && <span className={`${styles.badge} ${styles.badgeGray}`}>Concluído</span>}
+                                          
+                                          {apt.paymentStatus.includes('paid') ? (
+                                            <span className={`${styles.badge} ${styles.badgeGreen}`}>Pago via {apt.paymentStatus.replace('paid_', '')}</span>
+                                          ) : (
+                                            <span className={`${styles.badge} ${styles.badgeYellow}`}>Pagamento pendente</span>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
+                                );
+                              })}
 
-                              );
-                            })
+                              {/* Tag discreta para agendamentos cancelados no mesmo horário */}
+                              {canceledAptsInSlot.map(cancAppt => (
+                                <div 
+                                  key={cancAppt.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedDetailAppt(cancAppt);
+                                  }}
+                                  style={{
+                                    marginTop: "6px",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                    background: "#FEF2F2",
+                                    border: "1px dashed #FCA5A5",
+                                    borderRadius: "10px",
+                                    padding: "4px 10px",
+                                    fontSize: "0.76rem",
+                                    fontWeight: 600,
+                                    color: "#991B1B",
+                                    cursor: "pointer"
+                                  }}
+                                  title="Clique para ver os detalhes do agendamento cancelado"
+                                >
+                                  <XCircle size={13} color="#EF4444" />
+                                  <span>Cancelado: <strong>{cancAppt.clientName}</strong> ({cancAppt.time})</span>
+                                  <span style={{ fontSize: "0.7rem", textDecoration: "underline", color: "#DC2626", marginLeft: "4px" }}>Ver detalhes</span>
+                                </div>
+                              ))}
+                            </div>
                           ) : (
                             isSelectedDateClosed ? (
                               <div className={styles.closedSlotCard}>
@@ -1158,20 +1350,52 @@ export default function AdminDashboard() {
                                   </button>
                                 </div>
                               ) : (
-                                <div className={styles.emptySlotWrapper}>
-                                  <div className={styles.emptySlotCard} onClick={() => handleOpenNewAppt(timeSlot)}>
-                                    <div className={styles.emptySlotText}>
-                                      <Plus size={15} className={styles.plusIcon} /> Adicionar agendamento
+                                <div className={styles.emptySlotWrapper} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                                    <div className={styles.emptySlotCard} onClick={() => handleOpenNewAppt(timeSlot)}>
+                                      <div className={styles.emptySlotText}>
+                                        <Plus size={15} className={styles.plusIcon} /> Adicionar agendamento
+                                      </div>
                                     </div>
+                                    <button 
+                                      className={styles.blockSlotBtn} 
+                                      onClick={() => toggleTimeSlot(selectedDateStr, timeSlot)} 
+                                      title="Bloquear este horário"
+                                    >
+                                      <Ban size={14} />
+                                      <span className={styles.blockSlotBtnText}>Bloquear</span>
+                                    </button>
                                   </div>
-                                  <button 
-                                    className={styles.blockSlotBtn} 
-                                    onClick={() => toggleTimeSlot(selectedDateStr, timeSlot)} 
-                                    title="Bloquear este horário"
-                                  >
-                                    <Ban size={14} />
-                                    <span className={styles.blockSlotBtnText}>Bloquear</span>
-                                  </button>
+
+                                  {/* Tag discreta para agendamentos cancelados no horário liberado */}
+                                  {canceledAptsInSlot.map(cancAppt => (
+                                    <div 
+                                      key={cancAppt.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedDetailAppt(cancAppt);
+                                      }}
+                                      style={{
+                                        marginTop: "6px",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "6px",
+                                        background: "#FEF2F2",
+                                        border: "1px dashed #FCA5A5",
+                                        borderRadius: "10px",
+                                        padding: "4px 10px",
+                                        fontSize: "0.76rem",
+                                        fontWeight: 600,
+                                        color: "#991B1B",
+                                        cursor: "pointer"
+                                      }}
+                                      title="Clique para ver os detalhes do agendamento cancelado"
+                                    >
+                                      <XCircle size={13} color="#EF4444" />
+                                      <span>Cancelado: <strong>{cancAppt.clientName}</strong> ({cancAppt.time})</span>
+                                      <span style={{ fontSize: "0.7rem", textDecoration: "underline", color: "#DC2626", marginLeft: "4px" }}>Ver detalhes</span>
+                                    </div>
+                                  ))}
                                 </div>
                               )
                             )
@@ -1288,23 +1512,97 @@ export default function AdminDashboard() {
 
       {activeTab === "finance" && (
         <div className={styles.mainContent}>
-          <div className={styles.statsGrid}>
+          {/* Subtabs Bar */}
+          <div style={{ display: "flex", gap: "12px", marginBottom: "24px", borderBottom: "2px solid var(--color-border)", paddingBottom: "12px" }}>
+            <button
+              onClick={() => setFinSubTab("transactions")}
+              style={{
+                background: finSubTab === "transactions" ? "var(--color-primary-dark)" : "transparent",
+                color: finSubTab === "transactions" ? "#ffffff" : "var(--color-text-main)",
+                padding: "10px 20px",
+                borderRadius: "12px",
+                fontWeight: 700,
+                fontSize: "0.92rem",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                transition: "all 0.2s ease"
+              }}
+            >
+              <PieChart size={18} /> Transações & Cobranças
+            </button>
+
+            <button
+              onClick={() => setFinSubTab("mp_config")}
+              style={{
+                background: finSubTab === "mp_config" ? "var(--color-primary-dark)" : "transparent",
+                color: finSubTab === "mp_config" ? "#ffffff" : "var(--color-text-main)",
+                padding: "10px 20px",
+                borderRadius: "12px",
+                fontWeight: 700,
+                fontSize: "0.92rem",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                transition: "all 0.2s ease"
+              }}
+            >
+              <CreditCard size={18} /> Configuração Mercado Pago
+              {mpIsConfigured && (
+                <span style={{ background: "#10b981", color: "#fff", fontSize: "0.7rem", padding: "2px 6px", borderRadius: "8px" }}>Ativo</span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setFinSubTab("mp_guide")}
+              style={{
+                background: finSubTab === "mp_guide" ? "var(--color-primary-dark)" : "transparent",
+                color: finSubTab === "mp_guide" ? "#ffffff" : "var(--color-text-main)",
+                padding: "10px 20px",
+                borderRadius: "12px",
+                fontWeight: 700,
+                fontSize: "0.92rem",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                transition: "all 0.2s ease"
+              }}
+            >
+              <Sparkles size={18} /> Passo a Passo da API
+            </button>
+          </div>
+
+          {/* Metrics Overview */}
+          <div className={styles.statsGrid} style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
             <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: "var(--color-primary-light)", color: "var(--color-primary-dark)" }}><TrendingUp size={28} /></div>
+              <div className={styles.statIcon} style={{ background: "var(--color-primary-light)", color: "var(--color-primary-dark)" }}><TrendingUp size={26} /></div>
               <div className={styles.statText}>
                 <div className={styles.statValue}>R$ {finTotal},00</div>
                 <div className={styles.statLabel}>Faturamento Total</div>
               </div>
             </div>
             <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: "#E8F5E9", color: "#2E7D32" }}><CheckCircle2 size={28} /></div>
+              <div className={styles.statIcon} style={{ background: "#e6f4ea", color: "#059669" }}><QrCode size={26} /></div>
               <div className={styles.statText}>
-                <div className={styles.statValue}>R$ {finPaid},00</div>
-                <div className={styles.statLabel}>Total Recebido (Pago)</div>
+                <div className={styles.statValue}>R$ {finPixTotal},00</div>
+                <div className={styles.statLabel}>Recebido via Pix</div>
               </div>
             </div>
             <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: "#FFF3E0", color: "#E65100" }}><CreditCard size={28} /></div>
+              <div className={styles.statIcon} style={{ background: "#e0f2fe", color: "#0284c7" }}><CreditCard size={26} /></div>
+              <div className={styles.statText}>
+                <div className={styles.statValue}>R$ {finCardTotal},00</div>
+                <div className={styles.statLabel}>Recebido via Cartão</div>
+              </div>
+            </div>
+            <div className={styles.statCard}>
+              <div className={styles.statIcon} style={{ background: "#FFF3E0", color: "#E65100" }}><Clock size={26} /></div>
               <div className={styles.statText}>
                 <div className={styles.statValue}>R$ {finPending},00</div>
                 <div className={styles.statLabel}>A Receber (Pendente)</div>
@@ -1312,109 +1610,403 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className={styles.card}>
-            <div className={styles.cardTitle}>
-              <div className={styles.titleIcon}>
-                <PieChart size={24} color="var(--color-primary-dark)" />
-                Gestão de Transações
-              </div>
-              
-              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--color-background)", padding: "4px 12px", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
-                  <Users size={16} color="var(--color-text-muted)" />
-                  <select 
-                    value={finClientFilter}
-                    onChange={(e) => setFinClientFilter(e.target.value)}
-                    style={{ background: "transparent", border: "none", outline: "none", fontSize: "0.9rem", color: "var(--color-text-main)", cursor: "pointer" }}
-                  >
-                    <option value="all">Todos os Clientes</option>
-                    {uniqueClientsList.map(c => (
-                      <option key={c.email} value={c.email}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--color-background)", padding: "4px 12px", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
-                  <Filter size={16} color="var(--color-text-muted)" />
-                  <select 
-                    value={finDateFilter}
-                    onChange={(e) => setFinDateFilter(e.target.value as any)}
-                    style={{ background: "transparent", border: "none", outline: "none", fontSize: "0.9rem", color: "var(--color-text-main)", cursor: "pointer" }}
-                  >
-                    <option value="all">Todo o Período</option>
-                    <option value="today">Hoje ({selectedDateStr})</option>
-                    <option value="yesterday">Ontem</option>
-                    <option value="last_7_days">Últimos 7 dias</option>
-                    <option value="last_30_days">Últimos 30 dias</option>
-                    <option value="this_month">Este Mês</option>
-                    <option value="last_month">Mês Passado</option>
-                    <option value="this_year">Este Ano</option>
-                  </select>
+          {/* SUBTAB 1: TRANSAÇÕES */}
+          {finSubTab === "transactions" && (
+            <div className={styles.card}>
+              <div className={styles.cardTitle}>
+                <div className={styles.titleIcon}>
+                  <PieChart size={24} color="var(--color-primary-dark)" />
+                  Gestão de Transações & Cobranças
                 </div>
                 
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--color-background)", padding: "4px 12px", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
-                  <Filter size={16} color="var(--color-text-muted)" />
-                  <select 
-                    value={finStatusFilter}
-                    onChange={(e) => setFinStatusFilter(e.target.value as any)}
-                    style={{ background: "transparent", border: "none", outline: "none", fontSize: "0.9rem", color: "var(--color-text-main)", cursor: "pointer" }}
-                  >
-                    <option value="all">Todos os Status</option>
-                    <option value="paid">Todos Pagos</option>
-                    <option value="paid_pix">Pago no Pix</option>
-                    <option value="paid_credit">Pago no Crédito</option>
-                    <option value="paid_debit">Pago no Débito</option>
-                    <option value="pending">Em Aberto (Pendente)</option>
-                  </select>
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--color-background)", padding: "4px 12px", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
+                    <Users size={16} color="var(--color-text-muted)" />
+                    <select 
+                      value={finClientFilter}
+                      onChange={(e) => setFinClientFilter(e.target.value)}
+                      style={{ background: "transparent", border: "none", outline: "none", fontSize: "0.9rem", color: "var(--color-text-main)", cursor: "pointer" }}
+                    >
+                      <option value="all">Todos os Clientes</option>
+                      {uniqueClientsList.map(c => (
+                        <option key={c.email} value={c.email}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--color-background)", padding: "4px 12px", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
+                    <Filter size={16} color="var(--color-text-muted)" />
+                    <select 
+                      value={finDateFilter}
+                      onChange={(e) => setFinDateFilter(e.target.value as any)}
+                      style={{ background: "transparent", border: "none", outline: "none", fontSize: "0.9rem", color: "var(--color-text-main)", cursor: "pointer" }}
+                    >
+                      <option value="all">Todo o Período</option>
+                      <option value="today">Hoje ({selectedDateStr})</option>
+                      <option value="yesterday">Ontem</option>
+                      <option value="last_7_days">Últimos 7 dias</option>
+                      <option value="last_30_days">Últimos 30 dias</option>
+                      <option value="this_month">Este Mês</option>
+                      <option value="last_month">Mês Passado</option>
+                      <option value="this_year">Este Ano</option>
+                    </select>
+                  </div>
+                  
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--color-background)", padding: "4px 12px", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
+                    <Filter size={16} color="var(--color-text-muted)" />
+                    <select 
+                      value={finStatusFilter}
+                      onChange={(e) => setFinStatusFilter(e.target.value as any)}
+                      style={{ background: "transparent", border: "none", outline: "none", fontSize: "0.9rem", color: "var(--color-text-main)", cursor: "pointer" }}
+                    >
+                      <option value="all">Todos os Status</option>
+                      <option value="paid">Todos Pagos</option>
+                      <option value="paid_pix">Pago no Pix</option>
+                      <option value="paid_credit">Pago no Crédito</option>
+                      <option value="pending">Em Aberto (Pendente)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.agendaList} style={{ marginTop: "24px" }}>
+                {filteredFinances.length === 0 ? (
+                  <div style={{ padding: "40px", textAlign: "center", color: "var(--color-text-muted)" }}>
+                    Nenhuma transação encontrada com os filtros atuais.
+                  </div>
+                ) : (
+                  <>
+                    {filteredFinances.slice(0, visibleFinancesCount).map(apt => {
+                      const isPaid = apt.paymentStatus.includes('paid');
+                      const isRefunded = (apt.paymentStatus as string) === 'refunded';
+                      const mpPaymentId = (apt as any).mp_payment_id;
+
+                      return (
+                        <div key={apt.id} className={styles.agendaItem} style={{ gridTemplateColumns: "110px 1fr auto", gap: "16px", alignItems: "center" }}>
+                          <div className={styles.timeBadge} style={{ fontSize: "0.85rem", background: "var(--color-background)", border: "1px solid var(--color-border)", textAlign: "center" }}>
+                            {apt.date}<br/>{apt.time}
+                          </div>
+                          
+                          <div>
+                            <div className={styles.clientName} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <span>{apt.clientName}</span>
+                              {mpPaymentId && (
+                                <span style={{ fontSize: "0.72rem", background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: "10px", fontWeight: 600 }}>
+                                  MP #{mpPaymentId}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className={styles.serviceInfo} style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", marginTop: "4px" }}>
+                              <span style={{ fontWeight: 500 }}>{apt.service}</span>
+
+                              {/* Status Badge */}
+                              <span style={{ 
+                                color: isRefunded ? '#dc2626' : isPaid ? '#059669' : '#e65100',
+                                fontWeight: 700,
+                                background: isRefunded ? '#fef2f2' : isPaid ? '#e6f4ea' : '#fff3e0',
+                                border: `1px solid ${isRefunded ? '#fecaca' : isPaid ? '#a7f3d0' : '#ffe0b2'}`,
+                                padding: '3px 10px',
+                                borderRadius: '12px',
+                                fontSize: '0.8rem',
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px"
+                              }}>
+                                {isRefunded ? 'Reembolsado / Estornado' : apt.paymentStatus === 'paid_pix' ? '⚡ Pago no Pix' : (apt.paymentStatus === 'paid_credit' || apt.paymentStatus === 'paid_debit' || (apt.paymentStatus as string) === 'paid_card') ? '💳 Pago no Cartão' : '⏳ Pendente (A Receber)'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
+                            <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--color-primary-dark)" }}>
+                              R$ {apt.price},00
+                            </div>
+
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              {/* Sync Button */}
+                              <button
+                                type="button"
+                                title="Verificar status online no Mercado Pago"
+                                disabled={mpActionId === apt.id}
+                                onClick={() => handleSyncMpStatus(apt.id, mpPaymentId)}
+                                style={{
+                                  background: "#f1f5f9",
+                                  border: "1px solid #cbd5e1",
+                                  color: "#334155",
+                                  padding: "4px 10px",
+                                  borderRadius: "8px",
+                                  fontSize: "0.78rem",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "4px"
+                                }}
+                              >
+                                <RefreshCw size={12} className={mpActionId === apt.id ? styles.spinner : ""} />
+                                <span>Verificar Status</span>
+                              </button>
+
+                              {/* Refund Button */}
+                              {isPaid && (
+                                <button
+                                  type="button"
+                                  title="Estornar valor no Mercado Pago"
+                                  disabled={mpActionId === apt.id}
+                                  onClick={() => handleRefundMp(apt.id, mpPaymentId)}
+                                  style={{
+                                    background: "#fef2f2",
+                                    border: "1px solid #fecaca",
+                                    color: "#dc2626",
+                                    padding: "4px 10px",
+                                    borderRadius: "8px",
+                                    fontSize: "0.78rem",
+                                    fontWeight: 600,
+                                    cursor: "pointer"
+                                  }}
+                                >
+                                  Estornar
+                                </button>
+                              )}
+
+                              {/* Mark as paid toggle if pending */}
+                              {!isPaid && !isRefunded && (
+                                <button
+                                  type="button"
+                                  title="Marcar como pago manualmente"
+                                  onClick={() => {
+                                    updatePayment(apt.id, 'paid_pix');
+                                    updateStatus(apt.id, 'confirmed');
+                                  }}
+                                  style={{
+                                    background: "#e6f4ea",
+                                    border: "1px solid #a7f3d0",
+                                    color: "#059669",
+                                    padding: "4px 10px",
+                                    borderRadius: "8px",
+                                    fontSize: "0.78rem",
+                                    fontWeight: 600,
+                                    cursor: "pointer"
+                                  }}
+                                >
+                                  Marcar Pago
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {filteredFinances.length > visibleFinancesCount && (
+                      <div className={styles.loadMoreContainer}>
+                        <button
+                          className={styles.loadMoreBtn}
+                          disabled={isLoadingMoreFinances}
+                          onClick={() => {
+                            setIsLoadingMoreFinances(true);
+                            setTimeout(() => {
+                              setVisibleFinancesCount(prev => prev + 10);
+                              setIsLoadingMoreFinances(false);
+                            }, 600);
+                          }}
+                        >
+                          {isLoadingMoreFinances ? (
+                            <>
+                              <RefreshCw size={18} className={styles.spinner} />
+                              <span>Carregando mais transações...</span>
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown size={18} />
+                              <span>Carregar mais ({filteredFinances.length - visibleFinancesCount} restantes)</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* SUBTAB 2: CONFIGURAÇÃO MERCADO PAGO */}
+          {finSubTab === "mp_config" && (
+            <div className={styles.card}>
+              <div className={styles.cardTitle}>
+                <div className={styles.titleIcon}>
+                  <CreditCard size={24} color="var(--color-primary-dark)" />
+                  Credenciais e Configurações da API do Mercado Pago
+                </div>
+              </div>
+
+              {mpSaveMsg && (
+                <div style={{ padding: "14px 18px", borderRadius: "14px", background: mpSaveMsg.includes("✅") ? "#e6f4ea" : "#fef2f2", color: mpSaveMsg.includes("✅") ? "#059669" : "#dc2626", border: "1px solid currentColor", marginBottom: "20px", fontWeight: 600, fontSize: "0.92rem" }}>
+                  {mpSaveMsg}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveMpSettings}>
+                <div className={styles.formGrid} style={{ display: "grid", gap: "20px" }}>
+                  <div className={styles.formGroup}>
+                    <label style={{ fontWeight: 700, color: "#0f172a", marginBottom: "8px", display: "block" }}>
+                      Access Token do Mercado Pago (Prod ou Teste)
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="APP_USR-0000000000000000-000000-00000000000000000000000000000000-000000000"
+                      value={mpAccessToken}
+                      onChange={(e) => setMpAccessToken(e.target.value)}
+                      style={{ width: "100%", padding: "14px 16px", borderRadius: "14px", border: "1.5px solid #cbd5e1", fontSize: "0.95rem", fontFamily: "monospace" }}
+                    />
+                    <small style={{ color: "#64748b", marginTop: "6px", display: "block" }}>
+                      Obtido em <strong>developers.mercadopago.com</strong> na sua aplicação na aba "Credenciais de Produção" ou "Credenciais de Teste".
+                    </small>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label style={{ fontWeight: 700, color: "#0f172a", marginBottom: "8px", display: "block" }}>
+                      Public Key do Mercado Pago
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="APP_USR-00000000-0000-0000-0000-000000000000"
+                      value={mpPublicKey}
+                      onChange={(e) => setMpPublicKey(e.target.value)}
+                      style={{ width: "100%", padding: "14px 16px", borderRadius: "14px", border: "1.5px solid #cbd5e1", fontSize: "0.95rem", fontFamily: "monospace" }}
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", background: "#f8fafc", padding: "20px", borderRadius: "16px", border: "1px solid #e2e8f0" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontWeight: 700, color: "#0f172a" }}>
+                      <input
+                        type="checkbox"
+                        checked={mpSandbox}
+                        onChange={(e) => setMpSandbox(e.target.checked)}
+                        style={{ width: "20px", height: "20px", accentColor: "#b8574c" }}
+                      />
+                      <span>Modo Sandbox (Ambiente de Testes)</span>
+                    </label>
+
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontWeight: 700, color: "#0f172a" }}>
+                      <input
+                        type="checkbox"
+                        checked={mpAutoConfirm}
+                        onChange={(e) => setMpAutoConfirm(e.target.checked)}
+                        style={{ width: "20px", height: "20px", accentColor: "#b8574c" }}
+                      />
+                      <span>Confirmar Agendamento Automaticamente ao Pagar</span>
+                    </label>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
+                    <button
+                      type="submit"
+                      disabled={mpSaveLoading}
+                      className="btn-primary"
+                      style={{ padding: "14px 28px", borderRadius: "14px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "8px" }}
+                    >
+                      {mpSaveLoading ? "Salvando..." : "Salvar Configurações MP"}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* SUBTAB 3: PASSO A PASSO DA API DO MERCADO PAGO */}
+          {finSubTab === "mp_guide" && (
+            <div className={styles.card}>
+              <div className={styles.cardTitle}>
+                <div className={styles.titleIcon}>
+                  <Sparkles size={24} color="var(--color-primary-dark)" />
+                  Guia Completo: Como Configurar a API do Mercado Pago
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gap: "24px", marginTop: "12px" }}>
+                {/* Passo 1 */}
+                <div style={{ background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "24px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#b8574c", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "1.1rem" }}>
+                      1
+                    </div>
+                    <h3 style={{ fontSize: "1.15rem", fontWeight: 800, color: "#0f172a" }}>
+                      Acesse o Portal de Desenvolvedores do Mercado Pago
+                    </h3>
+                  </div>
+                  <p style={{ color: "#475569", lineHeight: 1.6, fontSize: "0.95rem" }}>
+                    Acesse <a href="https://www.mercadopago.com.br/developers/panel/app" target="_blank" rel="noreferrer" style={{ color: "#b8574c", fontWeight: 700, textDecoration: "underline" }}>developers.mercadopago.com</a> com sua conta do Mercado Pago onde você deseja receber as vendas.
+                  </p>
+                </div>
+
+                {/* Passo 2 */}
+                <div style={{ background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "24px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#b8574c", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "1.1rem" }}>
+                      2
+                    </div>
+                    <h3 style={{ fontSize: "1.15rem", fontWeight: 800, color: "#0f172a" }}>
+                      Crie uma Nova Aplicação
+                    </h3>
+                  </div>
+                  <p style={{ color: "#475569", lineHeight: 1.6, fontSize: "0.95rem", marginBottom: "12px" }}>
+                    Clique no botão <strong>"Criar aplicação"</strong> e preencha com as opções:
+                  </p>
+                  <ul style={{ color: "#334155", paddingLeft: "20px", lineHeight: 1.7, fontSize: "0.92rem" }}>
+                    <li><strong>Nome da Aplicação:</strong> Agenday Beauty (ou nome do seu estabelecimento).</li>
+                    <li><strong>Tipo de Solução de Pagamento:</strong> Pagamentos Checkout / API Transparente.</li>
+                    <li><strong>Modelo de Integração:</strong> Acessar dados da sua conta (Produção).</li>
+                  </ul>
+                </div>
+
+                {/* Passo 3 */}
+                <div style={{ background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "24px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#b8574c", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "1.1rem" }}>
+                      3
+                    </div>
+                    <h3 style={{ fontSize: "1.15rem", fontWeight: 800, color: "#0f172a" }}>
+                      Obtenha o Access Token e a Public Key
+                    </h3>
+                  </div>
+                  <p style={{ color: "#475569", lineHeight: 1.6, fontSize: "0.95rem", marginBottom: "12px" }}>
+                    No menu lateral da sua aplicação criada, clique em <strong>"Credenciais de Produção"</strong> (ou "Credenciais de Teste" para ambiente Sandbox) e copie os campos:
+                  </p>
+                  <div style={{ background: "#ffffff", padding: "16px", borderRadius: "14px", border: "1px solid #cbd5e1", fontFamily: "monospace", fontSize: "0.88rem", color: "#0f172a" }}>
+                    • Access Token: APP_USR-xxxxxxxxxxxxxxxx...<br/>
+                    • Public Key: APP_USR-xxxxxxxx-xxxx-xxxx...
+                  </div>
+                  <p style={{ color: "#475569", lineHeight: 1.6, fontSize: "0.92rem", marginTop: "12px" }}>
+                    Cole estas chaves na aba <strong>"Configuração Mercado Pago"</strong> no formulário acima e clique em salvar!
+                  </p>
+                </div>
+
+                {/* Passo 4 */}
+                <div style={{ background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "24px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#b8574c", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "1.1rem" }}>
+                      4
+                    </div>
+                    <h3 style={{ fontSize: "1.15rem", fontWeight: 800, color: "#0f172a" }}>
+                      Configurar Webhooks (Notificações de Pagamento Instantâneo)
+                    </h3>
+                  </div>
+                  <p style={{ color: "#475569", lineHeight: 1.6, fontSize: "0.95rem", marginBottom: "12px" }}>
+                    Para que o sistema receba a confirmação do Pix e do Cartão automaticamente mesmo que o cliente feche o navegador, configure a URL de Webhooks nas configurações da sua aplicação no Mercado Pago:
+                  </p>
+                  <div style={{ background: "#ffffff", padding: "14px 18px", borderRadius: "14px", border: "1.5px solid #10b981", fontWeight: 700, color: "#059669", fontFamily: "monospace", fontSize: "0.92rem", wordBreak: "break-all" }}>
+                    {typeof window !== "undefined" ? window.location.origin : "https://seu-dominio.com"}/api/mercadopago/webhook
+                  </div>
+                  <p style={{ color: "#475569", lineHeight: 1.6, fontSize: "0.88rem", marginTop: "10px" }}>
+                    Marque os eventos: <code>Pagamentos (payment)</code> e <code>payment.updated</code>.
+                  </p>
                 </div>
               </div>
             </div>
-
-            <div className={styles.agendaList} style={{ marginTop: "24px" }}>
-              {filteredFinances.length === 0 ? (
-                <div style={{ padding: "40px", textAlign: "center", color: "var(--color-text-muted)" }}>
-                  Nenhuma transação encontrada com os filtros atuais.
-                </div>
-              ) : (
-                filteredFinances.map(apt => {
-                  const isPaid = apt.paymentStatus.includes('paid');
-                  return (
-                    <div key={apt.id} className={styles.agendaItem} style={{ gridTemplateColumns: "100px 1fr auto" }}>
-                      <div className={styles.timeBadge} style={{ fontSize: "0.9rem", background: "var(--color-background)", border: "1px solid var(--color-border)" }}>
-                        {apt.date}<br/>{apt.time}
-                      </div>
-                      
-                      <div>
-                        <div className={styles.clientName}>
-                          {apt.clientName}
-                          {!clients.some(c => c.email === apt.clientEmail) && (
-                            <span style={{ marginLeft: 8, fontSize: "0.7rem", backgroundColor: "#fef2f2", color: "#ef4444", padding: "2px 6px", borderRadius: "12px", border: "1px solid #fecaca", fontWeight: 600 }}>Excluído</span>
-                          )}
-                        </div>
-                        <div className={styles.serviceInfo}>
-                          <span>{apt.service}</span>
-                          <span style={{ 
-                            color: isPaid ? 'var(--color-success)' : '#E65100',
-                            fontWeight: 600,
-                            background: isPaid ? '#E8F5E9' : '#FFF3E0',
-                            padding: '2px 8px',
-                            borderRadius: '12px',
-                            fontSize: '0.8rem'
-                          }}>
-                            {apt.paymentStatus === 'paid_pix' ? 'Pix' : (apt.paymentStatus === 'paid_credit' || apt.paymentStatus === 'paid_debit' || (apt.paymentStatus as string) === 'paid_card') ? 'Cartão' : 'Pendente'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--color-primary-dark)" }}>
-                        R$ {apt.price},00
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -2720,9 +3312,16 @@ export default function AdminDashboard() {
                       <button 
                         onClick={() => {
                           const newStatus = client.status === 'inactive' ? 'active' : 'inactive';
-                          if (confirm(`Deseja realmente ${newStatus === 'inactive' ? 'inativar' : 'reativar'} o perfil de ${client.name}?`)) {
-                            updateClient(client.id, { status: newStatus });
-                          }
+                          setConfirmModal({
+                            open: true,
+                            title: `${newStatus === 'inactive' ? 'Inativar' : 'Reativar'} Perfil`,
+                            message: `Deseja realmente ${newStatus === 'inactive' ? 'inativar' : 'reativar'} o perfil de ${client.name}?`,
+                            confirmText: `Sim, ${newStatus === 'inactive' ? 'Inativar' : 'Reativar'}`,
+                            variant: newStatus === 'inactive' ? 'warning' : 'primary',
+                            onConfirm: () => {
+                              updateClient(client.id, { status: newStatus });
+                            }
+                          });
                         }} 
                         style={{ 
                           padding: "10px 8px", 
@@ -2816,8 +3415,8 @@ export default function AdminDashboard() {
                         <div style={{ textAlign: "right" }}>
                           <div style={{ fontWeight: 600, color: "var(--color-text)", fontSize: "1.1rem" }}>R$ {apt.price},00</div>
                           <div style={{ fontSize: "0.75rem", padding: "4px 8px", borderRadius: "4px", display: "inline-block", marginTop: "8px", fontWeight: 600, textTransform: "uppercase",
-                            background: apt.status === 'completed' ? '#E8F5E9' : apt.status === 'canceled' ? '#FFEBEE' : '#E3F2FD',
-                            color: apt.status === 'completed' ? '#2E7D32' : apt.status === 'canceled' ? '#C62828' : '#1565C0'
+                            background: apt.status === 'completed' ? '#E8F5E9' : apt.status === 'confirmed' ? '#DCFCE7' : apt.status === 'canceled' ? '#FFEBEE' : '#FEF3C7',
+                            color: apt.status === 'completed' ? '#2E7D32' : apt.status === 'confirmed' ? '#15803D' : apt.status === 'canceled' ? '#C62828' : '#B45309'
                           }}>
                             {apt.status === 'completed' ? 'Concluído' : apt.status === 'canceled' ? 'Cancelado' : apt.status === 'confirmed' ? 'Confirmado' : apt.status === 'rescheduled' ? 'Remarcado' : 'Pendente'}
                           </div>
@@ -3663,10 +4262,19 @@ export default function AdminDashboard() {
                           if (selectedDetailAppt.status === 'canceled') {
                             updateStatus(selectedDetailAppt.id, 'pending');
                             setSelectedDetailAppt(prev => prev ? { ...prev, status: 'pending' } : null);
-                          } else if (confirm(`Deseja realmente cancelar o agendamento de ${selectedDetailAppt.clientName}?`)) {
-                            updateStatus(selectedDetailAppt.id, 'canceled');
-                            handleSendCancellationForAppt(selectedDetailAppt);
-                            setSelectedDetailAppt(prev => prev ? { ...prev, status: 'canceled' } : null);
+                          } else {
+                            setConfirmModal({
+                              open: true,
+                              title: "Cancelar Agendamento",
+                              message: `Deseja realmente cancelar o agendamento de ${selectedDetailAppt.clientName}?`,
+                              confirmText: "Sim, Cancelar",
+                              variant: "danger",
+                              onConfirm: () => {
+                                updateStatus(selectedDetailAppt.id, 'canceled');
+                                handleSendCancellationForAppt(selectedDetailAppt);
+                                setSelectedDetailAppt(prev => prev ? { ...prev, status: 'canceled' } : null);
+                              }
+                            });
                           }
                         }}
                         title="Cancelar agendamento e avisar no WhatsApp"
@@ -3679,10 +4287,17 @@ export default function AdminDashboard() {
                       <button
                         className={`${styles.detailActionBtn} ${styles.btnDelete}`}
                         onClick={() => {
-                          if (confirm(`Deseja excluir definitivamente o agendamento de ${selectedDetailAppt.clientName}?`)) {
-                            deleteAppointment(selectedDetailAppt.id);
-                            setSelectedDetailAppt(null);
-                          }
+                          setConfirmModal({
+                            open: true,
+                            title: "Excluir Agendamento",
+                            message: `Deseja excluir definitivamente o agendamento de ${selectedDetailAppt.clientName}?`,
+                            confirmText: "Sim, Excluir",
+                            variant: "danger",
+                            onConfirm: () => {
+                              deleteAppointment(selectedDetailAppt.id);
+                              setSelectedDetailAppt(null);
+                            }
+                          });
                         }}
                         title="Excluir este agendamento do banco de dados"
                       >
@@ -3695,6 +4310,193 @@ export default function AdminDashboard() {
               );
 
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Notice Modal */}
+      {noticeModal?.open && (
+        <div 
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 99999,
+            backgroundColor: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px"
+          }}
+          onClick={() => setNoticeModal(null)}
+        >
+          <div 
+            style={{
+              background: "#FFFFFF",
+              borderRadius: "24px",
+              padding: "28px 24px",
+              width: "100%",
+              maxWidth: "420px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              textAlign: "center",
+              position: "relative",
+              border: "1px solid #F0E5DF"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div 
+              style={{
+                width: "60px",
+                height: "60px",
+                borderRadius: "50%",
+                background: noticeModal.type === "error" ? "#FEF2F2" : noticeModal.type === "success" ? "#ECFDF5" : "#EFF6FF",
+                color: noticeModal.type === "error" ? "#EF4444" : noticeModal.type === "success" ? "#10B981" : "#3B82F6",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 16px"
+              }}
+            >
+              {noticeModal.type === "error" ? (
+                <AlertCircle size={32} />
+              ) : noticeModal.type === "success" ? (
+                <CheckCircle2 size={32} />
+              ) : (
+                <Sparkles size={32} />
+              )}
+            </div>
+
+            <h3 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#18181B", margin: "0 0 8px 0" }}>
+              {noticeModal.title}
+            </h3>
+
+            <p style={{ fontSize: "0.92rem", color: "#71717A", lineHeight: 1.5, margin: "0 0 24px 0" }}>
+              {noticeModal.message}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setNoticeModal(null)}
+              style={{
+                width: "100%",
+                background: "linear-gradient(135deg, #D96B52 0%, #C85A48 100%)",
+                color: "#FFFFFF",
+                fontWeight: 700,
+                fontSize: "0.95rem",
+                padding: "14px",
+                borderRadius: "14px",
+                border: "none",
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(217, 107, 82, 0.25)"
+              }}
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal?.open && (
+        <div 
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 999999,
+            backgroundColor: "rgba(15, 23, 42, 0.7)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px"
+          }}
+          onClick={() => setConfirmModal(null)}
+        >
+          <div 
+            style={{
+              background: "#FFFFFF",
+              borderRadius: "24px",
+              padding: "28px 24px",
+              width: "100%",
+              maxWidth: "440px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.3)",
+              textAlign: "center",
+              position: "relative",
+              border: "1px solid #F0E5DF"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div 
+              style={{
+                width: "60px",
+                height: "60px",
+                borderRadius: "50%",
+                background: confirmModal.variant === "warning" ? "#FFFBEB" : confirmModal.variant === "primary" ? "#EFF6FF" : "#FEF2F2",
+                color: confirmModal.variant === "warning" ? "#D97706" : confirmModal.variant === "primary" ? "#2563EB" : "#EF4444",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 16px"
+              }}
+            >
+              {confirmModal.variant === "warning" ? (
+                <AlertCircle size={32} />
+              ) : confirmModal.variant === "primary" ? (
+                <Sparkles size={32} />
+              ) : (
+                <XCircle size={32} />
+              )}
+            </div>
+
+            <h3 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#18181B", margin: "0 0 8px 0" }}>
+              {confirmModal.title}
+            </h3>
+
+            <p style={{ fontSize: "0.92rem", color: "#71717A", lineHeight: 1.5, margin: "0 0 24px 0" }}>
+              {confirmModal.message}
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                style={{
+                  background: "#F4F4F5",
+                  color: "#3F3F46",
+                  fontWeight: 600,
+                  fontSize: "0.92rem",
+                  padding: "13px",
+                  borderRadius: "14px",
+                  border: "none",
+                  cursor: "pointer"
+                }}
+              >
+                {confirmModal.cancelText || "Cancelar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const cb = confirmModal.onConfirm;
+                  setConfirmModal(null);
+                  if (cb) cb();
+                }}
+                style={{
+                  background: confirmModal.variant === "warning" ? "linear-gradient(135deg, #F59E0B, #D97706)" : confirmModal.variant === "primary" ? "linear-gradient(135deg, #3B82F6, #2563EB)" : "linear-gradient(135deg, #EF4444, #DC2626)",
+                  color: "#FFFFFF",
+                  fontWeight: 700,
+                  fontSize: "0.92rem",
+                  padding: "13px",
+                  borderRadius: "14px",
+                  border: "none",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(239, 68, 68, 0.25)"
+                }}
+              >
+                {confirmModal.confirmText || "Confirmar"}
+              </button>
+            </div>
           </div>
         </div>
       )}

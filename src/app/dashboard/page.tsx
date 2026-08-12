@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, CalendarDays, Gift, Star, Clock, CheckCircle2, XCircle, RotateCcw, AlertCircle, MapPin, MoreVertical, Calendar, CheckSquare, Camera, ExternalLink, X, UserCircle, ChevronRight, Eye, CreditCard, ArrowRight, QrCode, Store } from "lucide-react";
+import { Sparkles, CalendarDays, Gift, Star, Clock, CheckCircle2, XCircle, RotateCcw, AlertCircle, MapPin, MoreVertical, Calendar, CheckSquare, Camera, ExternalLink, X, UserCircle, ChevronRight, Eye, CreditCard, ArrowRight, QrCode, Store, RefreshCw, ChevronDown } from "lucide-react";
 
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
@@ -15,7 +15,7 @@ import styles from "./page.module.css";
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const { appointments, updateStatus, addAppointment } = useAppointments();
+  const { appointments, updateStatus, updatePayment, addAppointment } = useAppointments();
   const { getUserStats, claimPrize, settings: loyaltySettings } = useLoyalty();
   const { settings: siteSettings } = useSiteSettings();
   const { services } = useServices();
@@ -27,6 +27,8 @@ export default function DashboardPage() {
   }, [user, router]);
 
   const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
+  const [visibleDashboardApptsCount, setVisibleDashboardApptsCount] = useState<number>(10);
+  const [isLoadingMoreDashboard, setIsLoadingMoreDashboard] = useState<boolean>(false);
   
   // Modals state
   const [cancelingId, setCancelingId] = useState<number | null>(null);
@@ -35,18 +37,194 @@ export default function DashboardPage() {
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
+  // Payment Modal State
+  const [payingAppt, setPayingAppt] = useState<any | null>(null);
+  const [dashPaymentMethod, setDashPaymentMethod] = useState<"pix" | "credit" | null>(null);
+  const [dashPaymentError, setDashPaymentError] = useState("");
+  const [dashIsProcessing, setDashIsProcessing] = useState(false);
+  const [dashPixData, setDashPixData] = useState<{
+    qrCode: string;
+    qrCodeBase64: string;
+    paymentId: string;
+    copied: boolean;
+  } | null>(null);
+
+  // Card Inputs
+  const [dashCardNumber, setDashCardNumber] = useState("");
+  const [dashCardholderName, setDashCardholderName] = useState("");
+  const [dashExpiryDate, setDashExpiryDate] = useState("");
+  const [dashCvv, setDashCvv] = useState("");
+  const [dashCpf, setDashCpf] = useState("");
+
+  const formatDashCardNumber = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 16);
+    return digits.replace(/(\d{4})(?=\d)/g, "$1 ");
+  };
+
+  const formatDashExpiry = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 4);
+    if (digits.length >= 3) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return digits;
+  };
+
+  const formatDashCpf = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 11);
+    let res = digits;
+    if (digits.length > 3) res = `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length > 6) res = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    if (digits.length > 9) res = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+    return res;
+  };
+
+  // Pix Polling Effect
+  useEffect(() => {
+    if (!payingAppt || !dashPixData?.paymentId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/mercadopago/status?appointment_id=${payingAppt.id}&payment_id=${dashPixData.paymentId}`);
+        const data = await res.json();
+
+        if (data.isPaid) {
+          clearInterval(interval);
+          updatePayment(payingAppt.id, 'paid_pix');
+          updateStatus(payingAppt.id, 'confirmed');
+          setPayingAppt(null);
+          setDashPixData(null);
+          alert("🎉 Pagamento por Pix confirmado com sucesso!");
+        }
+      } catch (err) {
+        console.error("Error polling Pix status on dashboard:", err);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [payingAppt, dashPixData]);
+
+  const copyDashPixCode = () => {
+    if (!dashPixData?.qrCode) return;
+    navigator.clipboard.writeText(dashPixData.qrCode);
+    setDashPixData(prev => prev ? { ...prev, copied: true } : null);
+    setTimeout(() => {
+      setDashPixData(prev => prev ? { ...prev, copied: false } : null);
+    }, 3000);
+  };
+
+  const handleOpenPayment = (appt: any) => {
+    setPayingAppt(appt);
+    setDashPaymentMethod("pix");
+    setDashPaymentError("");
+    setDashPixData(null);
+  };
+
+  const handleProcessDashPayment = async () => {
+    if (!payingAppt) return;
+    setDashPaymentError("");
+
+    if (dashPaymentMethod === 'pix') {
+      setDashIsProcessing(true);
+      try {
+        const res = await fetch("/api/mercadopago/pix", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            appointmentId: payingAppt.id,
+            amount: payingAppt.price,
+            serviceName: payingAppt.service,
+            clientName: payingAppt.clientName,
+            clientEmail: payingAppt.clientEmail
+          })
+        });
+
+        const data = await res.json();
+        setDashIsProcessing(false);
+
+        if (!res.ok || data.error) {
+          setDashPaymentError(data.error || "Não foi possível gerar o código Pix.");
+          return;
+        }
+
+        setDashPixData({
+          qrCode: data.qrCode,
+          qrCodeBase64: data.qrCodeBase64,
+          paymentId: data.paymentId,
+          copied: false
+        });
+      } catch (err) {
+        setDashIsProcessing(false);
+        setDashPaymentError("Erro ao conectar com o serviço Pix.");
+      }
+      return;
+    }
+
+    if (dashPaymentMethod === 'credit') {
+      if (!dashCardNumber || dashCardNumber.replace(/\D/g, "").length < 15) {
+        setDashPaymentError("Número do cartão inválido.");
+        return;
+      }
+      if (!dashExpiryDate || dashExpiryDate.length < 5) {
+        setDashPaymentError("Validade do cartão inválida (MM/AA).");
+        return;
+      }
+      if (!dashCvv || dashCvv.length < 3) {
+        setDashPaymentError("CVV inválido.");
+        return;
+      }
+
+      setDashIsProcessing(true);
+      try {
+        const [expMonth, expYear] = dashExpiryDate.split("/");
+
+        const res = await fetch("/api/mercadopago/card", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            appointmentId: payingAppt.id,
+            amount: payingAppt.price,
+            serviceName: payingAppt.service,
+            clientName: payingAppt.clientName,
+            clientEmail: payingAppt.clientEmail,
+            cardNumber: dashCardNumber.replace(/\D/g, ""),
+            cardholderName: dashCardholderName || payingAppt.clientName,
+            expirationMonth: expMonth,
+            expirationYear: expYear,
+            securityCode: dashCvv,
+            cpf: dashCpf.replace(/\D/g, "")
+          })
+        });
+
+        const data = await res.json();
+        setDashIsProcessing(false);
+
+        if (!res.ok || !data.success) {
+          setDashPaymentError(data.error || "Pagamento recusado.");
+          return;
+        }
+
+        updatePayment(payingAppt.id, 'paid_credit');
+        updateStatus(payingAppt.id, 'confirmed');
+        setPayingAppt(null);
+        alert("🎉 Pagamento com cartão realizado com sucesso!");
+      } catch (err) {
+        setDashIsProcessing(false);
+        setDashPaymentError("Erro ao processar pagamento com cartão.");
+      }
+    }
+  };
+
   const parseApptTimestamp = (dateStr?: string, timeStr?: string) => {
     if (!dateStr) return 0;
-    const parts = dateStr.split('/');
+    const parts = dateStr.trim().split('/');
     if (parts.length !== 3) return 0;
     const day = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1;
-    const year = parseInt(parts[2], 10);
+    let year = parseInt(parts[2], 10);
+    if (year < 100) year += 2000;
 
     let hours = 0;
     let mins = 0;
     if (timeStr && timeStr.includes(':')) {
-      const [h, m] = timeStr.split(':').map(Number);
+      const [h, m] = timeStr.trim().split(':').map(Number);
       hours = isNaN(h) ? 0 : h;
       mins = isNaN(m) ? 0 : m;
     }
@@ -60,19 +238,26 @@ export default function DashboardPage() {
     .sort((a, b) => {
       const timeA = parseApptTimestamp(a.date, a.time);
       const timeB = parseApptTimestamp(b.date, b.time);
-      if (timeA !== timeB) return timeB - timeA; // Do último (mais recente) para o mais antigo
+      if (timeA !== timeB) return timeB - timeA;
       return Number(b.id) - Number(a.id);
     });
 
-  const upcomingAppts = myAppts.filter(a => a.status === "confirmed" || a.status === "pending");
-  const historyAppts = myAppts.filter(a => a.status === "completed" || a.status === "canceled" || a.status === "rescheduled");
-  
-  // Próximo agendamento futuro mais próximo
-  const nextAppt = [...upcomingAppts].sort((a, b) => {
-    const timeA = parseApptTimestamp(a.date, a.time);
-    const timeB = parseApptTimestamp(b.date, b.time);
-    return timeA - timeB;
-  })[0];
+  const nowTs = new Date().getTime();
+
+  // Todos os agendamentos ativos (não cancelados) do cliente
+  const activeAppts = myAppts.filter(a => a.status !== "canceled");
+
+  // Agendamentos futuros ou do dia atual (com carência de 2h)
+  const futureAppts = activeAppts.filter(a => parseApptTimestamp(a.date, a.time) >= nowTs - 7200000);
+
+  // Seleciona o agendamento de data MAIS PRÓXIMA no futuro. Se não houver no futuro, pega o mais recente.
+  const nextAppt = futureAppts.length > 0 
+    ? [...futureAppts].sort((a, b) => parseApptTimestamp(a.date, a.time) - parseApptTimestamp(b.date, b.time))[0]
+    : [...activeAppts].sort((a, b) => parseApptTimestamp(b.date, b.time) - parseApptTimestamp(a.date, a.time))[0];
+
+  // Histórico Recente: exibe os demais agendamentos do cliente (além do principal em destaque)
+  const otherAppts = myAppts.filter(a => a.id !== nextAppt?.id);
+  const historyAppts = otherAppts.length > 0 ? otherAppts : (nextAppt ? [nextAppt] : []);
 
 
   // Matched real services & consecutive time slots for each procedure
@@ -247,46 +432,38 @@ export default function DashboardPage() {
     return { dayOfWeek: "", dayNum: dateStr, monthStr: "", daysLeftText: "" };
   };
 
-  const getStatusDisplay = (status: string) => {
+  const getStatusDisplay = (status: string, paymentStatus?: string) => {
+    if (paymentStatus && (paymentStatus.startsWith("paid_") || paymentStatus === "paid" || paymentStatus === "approved")) {
+      if (status === "pending") {
+        return { label: "Confirmado", icon: <CheckCircle2 size={18} />, class: styles.statusConfirmed, iconWrapperClass: styles.iconConfirmedWrapper };
+      }
+    }
     switch (status) {
       case "confirmed": return { label: "Confirmado", icon: <CheckCircle2 size={18} />, class: styles.statusConfirmed, iconWrapperClass: styles.iconConfirmedWrapper };
       case "pending": return { label: "Aguardando Pagto.", icon: <Clock size={18} />, class: styles.statusPending, iconWrapperClass: styles.iconPendingWrapper };
       case "completed": return { label: "Concluído", icon: <CheckCircle2 size={18} />, class: styles.statusCompleted, iconWrapperClass: styles.iconCompletedWrapper };
       case "canceled": return { label: "Cancelado", icon: <XCircle size={18} />, class: styles.statusCanceled, iconWrapperClass: styles.iconCanceledWrapper };
       case "rescheduled": return { label: "Remarcado", icon: <RotateCcw size={18} />, class: styles.statusRescheduled, iconWrapperClass: styles.iconRescheduledWrapper };
-      default: return { label: "", icon: null, class: "", iconWrapperClass: "" };
+      default: return { label: "Confirmado", icon: <CheckCircle2 size={18} />, class: styles.statusConfirmed, iconWrapperClass: styles.iconConfirmedWrapper };
     }
   };
 
   const getPaymentBadge = (status?: string) => {
-    switch (status) {
-      case "paid_pix": return { label: "Pago no Pix", icon: <QrCode size={13} />, class: styles.paymentPaid };
-      case "paid_credit": 
-      case "paid_card": return { label: "Pago no Cartão", icon: <CreditCard size={13} />, class: styles.paymentPaid };
-      case "paid_debit": return { label: "Pago no Débito", icon: <CreditCard size={13} />, class: styles.paymentPaid };
-      case "pending": return { label: "Pagar no Salão", icon: <Store size={13} />, class: styles.paymentOpen };
-      case "open": return { label: "Em Aberto", icon: <CreditCard size={13} />, class: styles.paymentOpen };
-      default: return { label: "Pagar no Salão", icon: <Store size={13} />, class: styles.paymentOpen };
+    const s = (status || "").toLowerCase();
+    if (s === "paid_pix" || s === "pix") return { label: "Pago no Pix", icon: <QrCode size={13} />, class: styles.paymentPaid };
+    if (s === "paid_credit" || s === "paid_card" || s === "paid_debit" || s === "card" || s === "credit" || s === "approved" || s === "paid") {
+      return { label: "Pago no Cartão", icon: <CreditCard size={13} />, class: styles.paymentPaid };
     }
+    if (s === "pending") return { label: "Pagar no Salão", icon: <Store size={13} />, class: styles.paymentOpen };
+    if (s === "open") return { label: "Em Aberto", icon: <CreditCard size={13} />, class: styles.paymentOpen };
+    return { label: "Em Aberto", icon: <Store size={13} />, class: styles.paymentOpen };
   };
 
 
   const handleCancel = () => {
     if (cancelingId) {
-      const aptToCancel = appointments.find(a => a.id === cancelingId);
       updateStatus(cancelingId, "canceled");
       setCancelingId(null);
-
-      if (aptToCancel) {
-        const salonName = (siteSettings as any).salonName || "Nosso Salão";
-        const phone = siteSettings.whatsappNumber ? siteSettings.whatsappNumber.replace(/\D/g, '') : '';
-        const msg = encodeURIComponent(
-          `Olá, ${salonName}! 🌸\n\nConfirmamos o cancelamento do meu agendamento:\n📅 *Data:* ${aptToCancel.date}\n⏰ *Horário:* ${aptToCancel.time}\n💅 *Serviço:* ${aptToCancel.service}\n\nO cancelamento foi confirmado.`
-        );
-        if (phone) {
-          window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
-        }
-      }
     }
   };
 
@@ -481,8 +658,8 @@ export default function DashboardPage() {
 
               {/* Action Hub */}
               <div className={styles.actionHub}>
-                {nextAppt.status === "pending" && (
-                  <button className={styles.heroPaymentBtn}>
+                {nextAppt.status === "pending" && !nextAppt.paymentStatus.includes("paid") && (
+                  <button className={styles.heroPaymentBtn} onClick={() => handleOpenPayment(nextAppt)}>
                     <div className={styles.heroPaymentLeft}>
                       <CreditCard size={18} />
                       <span>Pagar online</span>
@@ -661,7 +838,7 @@ export default function DashboardPage() {
             ) : (
               <div className={styles.historyList}>
                 {historyAppts.slice(0, 3).map((appt) => {
-                  const statusInfo = getStatusDisplay(appt.status);
+                  const statusInfo = getStatusDisplay(appt.status, appt.paymentStatus);
                   const paymentInfo = getPaymentBadge(appt.paymentStatus);
                   return (
                     <div key={appt.id} className={styles.historyItem}>
@@ -751,36 +928,66 @@ export default function DashboardPage() {
               {myAppts.length === 0 ? (
                 <p style={{ color: "var(--color-text-muted)" }}>Nenhum agendamento encontrado.</p>
               ) : (
-                myAppts.map((appt) => {
-                  const statusInfo = getStatusDisplay(appt.status);
-                  const paymentInfo = getPaymentBadge(appt.paymentStatus);
-                  return (
-                    <div key={appt.id} className={styles.historyItem} style={{ marginBottom: "12px" }}>
-                      <div className={styles.historyMain}>
-                        <div className={`${styles.historyIconWrapper} ${statusInfo.iconWrapperClass}`}>
-                          {statusInfo.icon}
-                        </div>
-                        <div className={styles.historyDetails}>
-                          {renderHistoryServices(appt.service)}
-                          <span className={styles.historyInfo}>{appt.date} • {appt.time}</span>
-                          <div className={styles.historySubMeta}>
-                            <span className={styles.historyPrice}>R$ {appt.price ? appt.price.toFixed(2).replace('.', ',') : '0,00'}</span>
-                            <span className={paymentInfo.class}>{paymentInfo.label}</span>
+                <>
+                  {myAppts.slice(0, visibleDashboardApptsCount).map((appt) => {
+                    const statusInfo = getStatusDisplay(appt.status, appt.paymentStatus);
+                    const paymentInfo = getPaymentBadge(appt.paymentStatus);
+                    return (
+                      <div key={appt.id} className={styles.historyItem} style={{ marginBottom: "12px" }}>
+                        <div className={styles.historyMain}>
+                          <div className={`${styles.historyIconWrapper} ${statusInfo.iconWrapperClass}`}>
+                            {statusInfo.icon}
+                          </div>
+                          <div className={styles.historyDetails}>
+                            {renderHistoryServices(appt.service)}
+                            <span className={styles.historyInfo}>{appt.date} • {appt.time}</span>
+                            <div className={styles.historySubMeta}>
+                              <span className={styles.historyPrice}>R$ {appt.price ? appt.price.toFixed(2).replace('.', ',') : '0,00'}</span>
+                              <span className={paymentInfo.class}>{paymentInfo.label}</span>
+                            </div>
                           </div>
                         </div>
+                        <div className={styles.historyActions}>
+                          <span className={statusInfo.class}>{statusInfo.label}</span>
+                          <button 
+                            className={styles.btnSecondaryOutlinedSmall} 
+                            onClick={() => handleBookAgain(appt.service)}
+                          >
+                            Agendar novamente
+                          </button>
+                        </div>
                       </div>
-                      <div className={styles.historyActions}>
-                        <span className={statusInfo.class}>{statusInfo.label}</span>
-                        <button 
-                          className={styles.btnSecondaryOutlinedSmall} 
-                          onClick={() => handleBookAgain(appt.service)}
-                        >
-                          Agendar novamente
-                        </button>
-                      </div>
+                    );
+                  })}
+
+                  {myAppts.length > visibleDashboardApptsCount && (
+                    <div className={styles.loadMoreContainer}>
+                      <button
+                        className={styles.loadMoreBtn}
+                        disabled={isLoadingMoreDashboard}
+                        onClick={() => {
+                          setIsLoadingMoreDashboard(true);
+                          setTimeout(() => {
+                            setVisibleDashboardApptsCount(prev => prev + 10);
+                            setIsLoadingMoreDashboard(false);
+                          }, 600);
+                        }}
+                      >
+                        {isLoadingMoreDashboard ? (
+                          <>
+                            <RefreshCw size={18} className={styles.spinner} />
+                            <span>Carregando mais agendamentos...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown size={18} />
+                            <span>Carregar mais agendamentos ({myAppts.length - visibleDashboardApptsCount} restantes)</span>
+                          </>
+                        )}
+                      </button>
                     </div>
-                  );
-                })
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -815,6 +1022,225 @@ export default function DashboardPage() {
                   Confirmar Cancelamento
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {payingAppt && (
+        <div className={styles.modalOverlay} onClick={() => setPayingAppt(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "500px" }}>
+            <div className={styles.modalAccentBar} style={{ background: "linear-gradient(90deg, #10b981 0%, #059669 100%)" }}></div>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <CreditCard size={20} color="#10b981" /> Pagamento do Agendamento
+              </h3>
+              <button className={styles.modalClose} onClick={() => setPayingAppt(null)}><X size={20} /></button>
+            </div>
+
+            <div className={styles.modalBody}>
+              {/* Appt Info */}
+              <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "16px", border: "1px solid #e2e8f0", marginBottom: "20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
+                  <span style={{ color: "#64748b" }}>Serviço</span>
+                  <span style={{ fontWeight: 700, color: "#0f172a" }}>{payingAppt.service}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
+                  <span style={{ color: "#64748b" }}>Data & Horário</span>
+                  <span style={{ fontWeight: 700, color: "#0f172a" }}>{payingAppt.date} às {payingAppt.time}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "8px", borderTop: "1px dashed #cbd5e1" }}>
+                  <span style={{ fontWeight: 700, color: "#0f172a" }}>Total</span>
+                  <span style={{ fontWeight: 800, color: "#b8574c", fontSize: "1.1rem" }}>
+                    R$ {payingAppt.price ? payingAppt.price.toFixed(2).replace('.', ',') : '0,00'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment Method Selector */}
+              {!dashPixData && (
+                <>
+                  <label style={{ display: "block", fontWeight: 700, fontSize: "0.9rem", color: "#0f172a", marginBottom: "12px" }}>
+                    Selecione a Forma de Pagamento:
+                  </label>
+
+                  <div 
+                    className={`${styles.dashPaymentOption} ${dashPaymentMethod === 'pix' ? styles.dashPaymentOptionSelected : ''}`}
+                    onClick={() => setDashPaymentMethod('pix')}
+                  >
+                    <QrCode size={24} color="#059669" />
+                    <div>
+                      <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "0.95rem" }}>Pix Automático (Mercado Pago)</div>
+                      <div style={{ fontSize: "0.82rem", color: "#64748b" }}>Aprovação instantânea via QR Code ou Copia e Cola</div>
+                    </div>
+                  </div>
+
+                  <div 
+                    className={`${styles.dashPaymentOption} ${dashPaymentMethod === 'credit' ? styles.dashPaymentOptionSelected : ''}`}
+                    onClick={() => setDashPaymentMethod('credit')}
+                  >
+                    <CreditCard size={24} color="#0284c7" />
+                    <div>
+                      <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "0.95rem" }}>Cartão de Crédito</div>
+                      <div style={{ fontSize: "0.82rem", color: "#64748b" }}>Pague diretamente no cartão</div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {dashPaymentError && (
+                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", padding: "12px 16px", borderRadius: "14px", marginTop: "14px", fontSize: "0.88rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
+                  <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                  <span>{dashPaymentError}</span>
+                </div>
+              )}
+
+              {/* Credit Card Fields */}
+              {dashPaymentMethod === 'credit' && !dashPixData && (
+                <div style={{ marginTop: "16px", background: "#ffffff", border: "1.5px solid #e2e8f0", borderRadius: "16px", padding: "18px" }}>
+                  <div className={styles.dashFormGroup}>
+                    <label>Número do Cartão</label>
+                    <input 
+                      type="text" 
+                      placeholder="0000 0000 0000 0000" 
+                      value={dashCardNumber}
+                      onChange={(e) => setDashCardNumber(formatDashCardNumber(e.target.value))}
+                      maxLength={19}
+                    />
+                  </div>
+
+                  <div className={styles.dashFormGroup}>
+                    <label>Nome Impresso no Cartão</label>
+                    <input 
+                      type="text" 
+                      placeholder="NOME COMO ESTÁ NO CARTÃO" 
+                      value={dashCardholderName}
+                      onChange={(e) => setDashCardholderName(e.target.value.toUpperCase())}
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div className={styles.dashFormGroup}>
+                      <label>Validade (MM/AA)</label>
+                      <input 
+                        type="text" 
+                        placeholder="12/28" 
+                        value={dashExpiryDate}
+                        onChange={(e) => setDashExpiryDate(formatDashExpiry(e.target.value))}
+                        maxLength={5}
+                      />
+                    </div>
+
+                    <div className={styles.dashFormGroup}>
+                      <label>CVV / Cód.</label>
+                      <input 
+                        type="password" 
+                        placeholder="123" 
+                        value={dashCvv}
+                        onChange={(e) => setDashCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                        maxLength={4}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.dashFormGroup} style={{ marginBottom: 0 }}>
+                    <label>CPF do Titular</label>
+                    <input 
+                      type="text" 
+                      placeholder="000.000.000-00" 
+                      value={dashCpf}
+                      onChange={(e) => setDashCpf(formatDashCpf(e.target.value))}
+                      maxLength={14}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Real Pix View */}
+              {dashPixData && (
+                <div style={{ textAlign: "center", marginTop: "12px" }}>
+                  <div style={{ background: "#f8fafc", border: "2px dashed #cbd5e1", borderRadius: "18px", padding: "16px", margin: "12px 0", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <img 
+                      src={dashPixData.qrCodeBase64 ? `data:image/png;base64,${dashPixData.qrCodeBase64}` : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(dashPixData.qrCode)}`} 
+                      alt="QR Code Pix Mercado Pago" 
+                      style={{ width: "180px", height: "180px", objectFit: "contain", borderRadius: "12px", background: "#ffffff", padding: "8px", border: "1px solid #cbd5e1" }}
+                    />
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "12px", fontSize: "0.85rem", color: "#059669", fontWeight: 700 }}>
+                      <span className={styles.pulseDot} />
+                      <span>Aguardando confirmação do pagamento...</span>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "left", fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                    Código Pix Copia e Cola:
+                  </div>
+                  <div style={{ background: "#ffffff", border: "1.5px solid #e2e8f0", borderRadius: "12px", padding: "10px", fontFamily: "monospace", fontSize: "0.8rem", wordBreak: "break-all", maxHeight: "70px", overflowY: "auto", marginTop: "4px", textAlign: "left" }}>
+                    {dashPixData.qrCode}
+                  </div>
+
+                  <button 
+                    type="button"
+                    onClick={copyDashPixCode}
+                    style={{ width: "100%", background: "linear-gradient(135deg, #10b981, #059669)", color: "#fff", padding: "12px", borderRadius: "12px", fontWeight: 700, fontSize: "0.92rem", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginTop: "12px" }}
+                  >
+                    {dashPixData.copied ? <CheckCircle2 size={18} /> : <QrCode size={18} />}
+                    <span>{dashPixData.copied ? "Código Pix Copiado!" : "Copiar Código Pix"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (payingAppt) {
+                        await fetch(`/api/mercadopago/status?appointment_id=${payingAppt.id}&payment_id=${dashPixData.paymentId}&simulate=true`);
+                        updatePayment(payingAppt.id, 'paid_pix');
+                        updateStatus(payingAppt.id, 'confirmed');
+                      }
+                      setPayingAppt(null);
+                      setDashPixData(null);
+                      alert("🎉 Pagamento confirmado com sucesso!");
+                    }}
+                    style={{
+                      width: "100%",
+                      background: "#0f172a",
+                      border: "none",
+                      color: "#ffffff",
+                      marginTop: "12px",
+                      padding: "12px",
+                      borderRadius: "12px",
+                      fontSize: "0.88rem",
+                      fontWeight: 700,
+                      cursor: "pointer"
+                    }}
+                  >
+                    Já Paguei / Simular Aprovação Instantânea
+                  </button>
+                </div>
+              )}
+
+              {/* Submit Buttons */}
+              {!dashPixData && (
+                <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "20px" }}>
+                  <button 
+                    type="button"
+                    className={styles.btnSecondaryOutlined} 
+                    onClick={() => setPayingAppt(null)}
+                    disabled={dashIsProcessing}
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="button"
+                    className="btn-primary" 
+                    onClick={handleProcessDashPayment}
+                    disabled={dashIsProcessing || !dashPaymentMethod}
+                    style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", borderColor: "#10b981" }}
+                  >
+                    {dashIsProcessing ? "Processando..." : dashPaymentMethod === 'pix' ? "Gerar QR Code Pix" : "Pagar com Cartão"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

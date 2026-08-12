@@ -11,6 +11,8 @@ import { AppointmentsProvider } from "@/context/AppointmentsContext";
 import { LoyaltyProvider } from "@/context/LoyaltyContext";
 import { ClientsProvider } from "@/context/ClientsContext";
 
+import GoogleAuthProviderWrapper from "@/components/GoogleAuthProviderWrapper";
+
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
 
@@ -34,21 +36,23 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${inter.variable} ${playfair.variable}`}>
-        <SiteSettingsProvider>
-          <AuthProvider>
-            <ClientsProvider>
-              <ServicesProvider>
-                <AppointmentsProvider>
-                  <LoyaltyProvider>
-                    <Header />
-                    <main>{children}</main>
-                    <WhatsAppButton />
-                  </LoyaltyProvider>
-                </AppointmentsProvider>
-              </ServicesProvider>
-            </ClientsProvider>
-          </AuthProvider>
-        </SiteSettingsProvider>
+        <GoogleAuthProviderWrapper>
+          <SiteSettingsProvider>
+            <AuthProvider>
+              <ClientsProvider>
+                <ServicesProvider>
+                  <AppointmentsProvider>
+                    <LoyaltyProvider>
+                      <Header />
+                      <main>{children}</main>
+                      <WhatsAppButton />
+                    </LoyaltyProvider>
+                  </AppointmentsProvider>
+                </ServicesProvider>
+              </ClientsProvider>
+            </AuthProvider>
+          </SiteSettingsProvider>
+        </GoogleAuthProviderWrapper>
       </body>
     </html>
   );

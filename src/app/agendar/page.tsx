@@ -42,7 +42,8 @@ function AgendarFlow() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"credit" | "pix" | "local" | null>(null);
-  const [authError, setAuthError] = useState("");
+  const [paymentError, setPaymentError] = useState("");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [confirmedApptData, setConfirmedApptData] = useState<{
     service: string;
@@ -51,36 +52,26 @@ function AgendarFlow() {
     price: number;
     paymentStatus: string;
   } | null>(null);
-
-
-
-  // Pre-select services when parameter is provided (e.g. servicos=all or servicos=cilios or servicos=name)
-  useEffect(() => {
-    if (!initialServiceParam || services.length === 0) return;
-
-    if (initialServiceParam === "all") {
-      setSelectedServices(services.map(s => s.id));
-      return;
-    }
-
-    const rawList = initialServiceParam.split(/,|\+/).map(s => decodeURIComponent(s).trim().toLowerCase());
-    const matched = services
-      .filter(s => 
-        rawList.includes(s.id.toLowerCase()) || 
-        rawList.includes(s.name.toLowerCase()) ||
-        rawList.some(r => s.name.toLowerCase().includes(r))
-      )
-      .map(s => s.id);
-
-    if (matched.length > 0) {
-      setSelectedServices(matched);
-    } else {
-      setSelectedServices(services.map(s => s.id));
-    }
-  }, [initialServiceParam, services]);
   
+  // Pix State
+  const [pixModalOpen, setPixModalOpen] = useState(false);
+  const [pixData, setPixData] = useState<{
+    qrCode: string;
+    qrCodeBase64: string;
+    paymentId: string;
+    appointmentId: number;
+    copied: boolean;
+  } | null>(null);
+
+  // Credit Card Form State
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardholderName, setCardholderName] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [cvv, setCvv] = useState("");
+  const [cardCpf, setCardCpf] = useState("");
   // Auth Form State
   const [isLogin, setIsLogin] = useState(true);
+  const [authError, setAuthError] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -98,20 +89,6 @@ function AgendarFlow() {
     return val;
   };
 
-  const toggleService = (id: string) => {
-    setSelectedServices(prev => 
-      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
-    );
-  };
-
-  const handleNext = () => setStep((s) => Math.min(4, s + 1));
-  const handlePrev = () => {
-    setStep((s) => {
-      if (s === 4 && user) return 2; // Skip step 3 (auth) when logged in
-      return Math.max(1, s - 1);
-    });
-  };
-
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
@@ -127,18 +104,46 @@ function AgendarFlow() {
     handleNext();
   };
 
+  const formatCardNumber = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 16);
+    return digits.replace(/(\d{4})(?=\d)/g, "$1 ");
+  };
 
+  const formatExpiry = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 4);
+    if (digits.length >= 3) {
+      return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    }
+    return digits;
+  };
 
-  const getSelectedObjects = () => services.filter(s => selectedServices.includes(s.id));
-  const totalPrice = getSelectedObjects().reduce((acc, curr) => acc + curr.price, 0);
-  const totalDuration = getSelectedObjects().reduce((acc, curr) => acc + curr.duration, 0);
+  const formatCpf = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 11);
+    let res = digits;
+    if (digits.length > 3) res = `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length > 6) res = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    if (digits.length > 9) res = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+    return res;
+  };
+
+  const handleNext = () => setStep((s) => Math.min(4, s + 1));
+  const handlePrev = () => {
+    setStep((s) => {
+      if (s === 4 && user) return 2;
+      return Math.max(1, s - 1);
+    });
+  };
+
+  const toggleService = (id: string) => {
+    setSelectedServices(prev => 
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+  };
 
   const clientWorkDays = settings.workDays || [1, 2, 3, 4, 5, 6];
   const disabledDaysOfWeek = [0, 1, 2, 3, 4, 5, 6].filter(d => !clientWorkDays.includes(d));
 
-
   const generateAvailableTimes = (date: Date) => {
-
     if (!clientWorkDays.includes(date.getDay())) {
       return [];
     }
@@ -146,14 +151,11 @@ function AgendarFlow() {
     const dateStr = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
     const dayAppts = appointments.filter(a => a.date === dateStr && a.status !== 'canceled');
 
-    
-    // Expediente baseado nas configurações do admin
     const startDay = timeToMins(settings.businessStart || "09:00");
     const endDay = timeToMins(settings.businessEnd || "18:00");
     
     const slots: { time: string, isUnavailable: boolean }[] = [];
     
-    // Intervalos a cada 30 minutos
     for (let m = startDay; m < endDay; m += 30) {
       const slotStart = m;
       const slotEnd = m + totalDuration;
@@ -193,35 +195,209 @@ function AgendarFlow() {
     return slots;
   };
 
-  const handleComplete = () => {
+  // Pix Polling Effect: checks payment status every 3 seconds while pix modal is active
+  useEffect(() => {
+    if (!pixModalOpen || !pixData?.appointmentId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/mercadopago/status?appointment_id=${pixData.appointmentId}&payment_id=${pixData.paymentId}`);
+        const data = await res.json();
+
+        if (data.isPaid) {
+          clearInterval(interval);
+          setPixModalOpen(false);
+          setShowSuccessModal(true);
+        }
+      } catch (err) {
+        console.error("Error polling Pix status:", err);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [pixModalOpen, pixData]);
+
+  const copyPixCode = () => {
+    if (!pixData?.qrCode) return;
+    navigator.clipboard.writeText(pixData.qrCode);
+    setPixData(prev => prev ? { ...prev, copied: true } : null);
+    setTimeout(() => {
+      setPixData(prev => prev ? { ...prev, copied: false } : null);
+    }, 3000);
+  };
+
+  const getSelectedObjects = () => services.filter(s => selectedServices.includes(s.id));
+  const totalPrice = getSelectedObjects().reduce((acc, curr) => acc + curr.price, 0);
+  const totalDuration = getSelectedObjects().reduce((acc, curr) => acc + curr.duration, 0);
+
+  const handleComplete = async () => {
     if (!user || !selectedDate || !selectedTime) return;
-    
+    setPaymentError("");
+
     const selectedDateStr = `${String(selectedDate.getDate()).padStart(2, '0')}/${String(selectedDate.getMonth() + 1).padStart(2, '0')}/${selectedDate.getFullYear()}`;
     const servicesStr = getSelectedObjects().map(s => s.name).join(" + ");
-    const paymentStatus = paymentMethod === 'credit' ? 'paid_card' : paymentMethod === 'pix' ? 'paid_pix' : 'pending';
-    
     const endTime = minsToTime(timeToMins(selectedTime) + totalDuration);
-    
-    addAppointment({
-      date: selectedDateStr,
-      time: selectedTime,
-      endTime: endTime,
-      service: servicesStr,
-      price: totalPrice,
-      status: 'pending',
-      paymentStatus: paymentStatus as any,
-      clientName: user.name,
-      clientEmail: user.email,
-    });
-    
-    setConfirmedApptData({
-      service: servicesStr,
-      date: selectedDateStr,
-      time: selectedTime,
-      price: totalPrice,
-      paymentStatus
-    });
-    setShowSuccessModal(true);
+    const appointmentId = Date.now();
+
+    // 1. Pagar no Salão (Local)
+    if (paymentMethod === 'local') {
+      addAppointment({
+        id: appointmentId,
+        date: selectedDateStr,
+        time: selectedTime,
+        endTime: endTime,
+        service: servicesStr,
+        price: totalPrice,
+        status: 'pending',
+        paymentStatus: 'open',
+        clientName: user.name,
+        clientEmail: user.email,
+      });
+
+      setConfirmedApptData({
+        service: servicesStr,
+        date: selectedDateStr,
+        time: selectedTime,
+        price: totalPrice,
+        paymentStatus: 'open'
+      });
+      setShowSuccessModal(true);
+      return;
+    }
+
+    // 2. Pix Automático via Mercado Pago
+    if (paymentMethod === 'pix') {
+      setIsProcessingPayment(true);
+      try {
+        // Save appointment initially as open
+        addAppointment({
+          id: appointmentId,
+          date: selectedDateStr,
+          time: selectedTime,
+          endTime: endTime,
+          service: servicesStr,
+          price: totalPrice,
+          status: 'pending',
+          paymentStatus: 'open',
+          clientName: user.name,
+          clientEmail: user.email,
+        });
+
+        const res = await fetch("/api/mercadopago/pix", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            appointmentId,
+            amount: totalPrice,
+            serviceName: servicesStr,
+            clientName: user.name,
+            clientEmail: user.email
+          })
+        });
+
+        const data = await res.json();
+        setIsProcessingPayment(false);
+
+        if (!res.ok || data.error) {
+          setPaymentError(data.error || "Não foi possível gerar o código Pix.");
+          return;
+        }
+
+        setConfirmedApptData({
+          service: servicesStr,
+          date: selectedDateStr,
+          time: selectedTime,
+          price: totalPrice,
+          paymentStatus: 'paid_pix'
+        });
+
+        setPixData({
+          qrCode: data.qrCode,
+          qrCodeBase64: data.qrCodeBase64,
+          paymentId: data.paymentId,
+          appointmentId,
+          copied: false
+        });
+        setPixModalOpen(true);
+      } catch (err: any) {
+        setIsProcessingPayment(false);
+        setPaymentError("Ocorreu um erro ao conectar com o serviço Pix.");
+      }
+      return;
+    }
+
+    // 3. Cartão de Crédito via Mercado Pago
+    if (paymentMethod === 'credit') {
+      if (!cardNumber || cardNumber.replace(/\D/g, "").length < 15) {
+        setPaymentError("Número do cartão de crédito inválido.");
+        return;
+      }
+      if (!expiryDate || expiryDate.length < 5) {
+        setPaymentError("Validade do cartão inválida (MM/AA).");
+        return;
+      }
+      if (!cvv || cvv.length < 3) {
+        setPaymentError("Código de segurança (CVV) inválido.");
+        return;
+      }
+
+      setIsProcessingPayment(true);
+      try {
+        const [expMonth, expYear] = expiryDate.split("/");
+
+        // Create appointment in local state first
+        addAppointment({
+          id: appointmentId,
+          date: selectedDateStr,
+          time: selectedTime,
+          endTime: endTime,
+          service: servicesStr,
+          price: totalPrice,
+          status: 'pending',
+          paymentStatus: 'open',
+          clientName: user.name,
+          clientEmail: user.email,
+        });
+
+        const res = await fetch("/api/mercadopago/card", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            appointmentId,
+            amount: totalPrice,
+            serviceName: servicesStr,
+            clientName: user.name,
+            clientEmail: user.email,
+            cardNumber: cardNumber.replace(/\D/g, ""),
+            cardholderName: cardholderName || user.name,
+            expirationMonth: expMonth,
+            expirationYear: expYear,
+            securityCode: cvv,
+            cpf: cardCpf.replace(/\D/g, "")
+          })
+        });
+
+        const data = await res.json();
+        setIsProcessingPayment(false);
+
+        if (!res.ok || !data.success) {
+          setPaymentError(data.error || "O pagamento com cartão foi recusado.");
+          return;
+        }
+
+        setConfirmedApptData({
+          service: servicesStr,
+          date: selectedDateStr,
+          time: selectedTime,
+          price: totalPrice,
+          paymentStatus: 'paid_card'
+        });
+        setShowSuccessModal(true);
+      } catch (err: any) {
+        setIsProcessingPayment(false);
+        setPaymentError("Falha ao processar o pagamento com cartão.");
+      }
+    }
   };
 
 
@@ -462,10 +638,80 @@ function AgendarFlow() {
               </div>
             </div>
             
+            {paymentError && (
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", padding: "14px 18px", borderRadius: "16px", marginBottom: "20px", fontSize: "0.9rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "10px" }}>
+                <AlertCircle size={20} style={{ flexShrink: 0 }} />
+                <span>{paymentError}</span>
+              </div>
+            )}
+
             {paymentMethod === 'credit' && (
-              <div className={styles.summary} style={{ border: "1px solid var(--color-primary-light)" }}>
-                <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", textAlign: "center" }}>
-                  * Integração simulada. Na versão final, abrirá o checkout do Mercado Pago aqui.
+              <div className={styles.cardFormContainer}>
+                <h4 style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <CreditCard size={18} color="#b8574c" /> Dados do Cartão de Crédito
+                </h4>
+                
+                <div className={styles.formGroup}>
+                  <label>Número do Cartão</label>
+                  <input 
+                    type="text" 
+                    placeholder="0000 0000 0000 0000" 
+                    value={cardNumber} 
+                    onChange={e => setCardNumber(formatCardNumber(e.target.value))}
+                    maxLength={19}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>Nome Impresso no Cartão</label>
+                  <input 
+                    type="text" 
+                    placeholder="NOME COMO ESTÁ NO CARTÃO" 
+                    value={cardholderName} 
+                    onChange={e => setCardholderName(e.target.value.toUpperCase())}
+                  />
+                </div>
+
+                <div className={styles.cardRow}>
+                  <div className={styles.formGroup}>
+                    <label>Validade (MM/AA)</label>
+                    <input 
+                      type="text" 
+                      placeholder="12/28" 
+                      value={expiryDate} 
+                      onChange={e => setExpiryDate(formatExpiry(e.target.value))}
+                      maxLength={5}
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>CVV / Cód.</label>
+                    <input 
+                      type="password" 
+                      placeholder="123" 
+                      value={cvv} 
+                      onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      maxLength={4}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.formGroup} style={{ marginBottom: 0 }}>
+                  <label>CPF do Titular</label>
+                  <input 
+                    type="text" 
+                    placeholder="000.000.000-00" 
+                    value={cardCpf} 
+                    onChange={e => setCardCpf(formatCpf(e.target.value))}
+                    maxLength={14}
+                  />
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === 'pix' && (
+              <div className={styles.summary} style={{ border: "1.5px solid #10b981", background: "#f0fdf4" }}>
+                <p style={{ color: "#065f46", fontSize: "0.92rem", textAlign: "center", fontWeight: 600 }}>
+                  ⚡ Ao confirmar, você verá o QR Code Pix e o código Copia e Cola do Mercado Pago para pagar instantaneamente!
                 </p>
               </div>
             )}
@@ -480,6 +726,7 @@ function AgendarFlow() {
                 type="button" 
                 onClick={handlePrev} 
                 className={styles.btnBack}
+                disabled={isProcessingPayment}
                 aria-label="Voltar para a etapa anterior"
               >
                 <ArrowLeft size={18} /> Voltar
@@ -504,9 +751,13 @@ function AgendarFlow() {
                 type="button"
                 onClick={handleComplete} 
                 className={`btn-primary ${styles.btnSubmit}`}
-                disabled={!paymentMethod}
+                disabled={!paymentMethod || isProcessingPayment}
               >
-                Confirmar Agendamento
+                {isProcessingPayment ? (
+                  <span>Processando...</span>
+                ) : (
+                  <span>Confirmar Agendamento</span>
+                )}
               </button>
             )}
           </div>
@@ -516,11 +767,100 @@ function AgendarFlow() {
               type="button" 
               onClick={handleCancel} 
               className={styles.btnCancel}
+              disabled={isProcessingPayment}
             >
               <X size={15} /> Cancelar
             </button>
           </div>
         </div>
+
+        {/* REAL PIX MERCADO PAGO MODAL */}
+        {pixModalOpen && pixData && (
+          <div className={styles.pixModalOverlay}>
+            <div className={styles.pixModalContent}>
+              <button 
+                type="button"
+                onClick={() => setPixModalOpen(false)}
+                style={{ position: "absolute", top: 16, right: 16, border: "none", background: "none", cursor: "pointer", color: "#64748b" }}
+              >
+                <X size={24} />
+              </button>
+
+              <div style={{ display: "inline-flex", padding: "12px", background: "#e6f4ea", borderRadius: "50%", color: "#059669", marginBottom: "12px" }}>
+                <QrCode size={36} />
+              </div>
+
+              <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", marginBottom: "6px" }}>
+                Pagamento via Pix Automático
+              </h2>
+              <p style={{ color: "#64748b", fontSize: "0.88rem", marginBottom: "16px" }}>
+                Escaneie o QR Code abaixo no app do seu banco ou use a chave Copia e Cola.
+              </p>
+
+              <div className={styles.pixQrWrapper}>
+                <img 
+                  src={pixData.qrCodeBase64 ? `data:image/png;base64,${pixData.qrCodeBase64}` : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixData.qrCode)}`} 
+                  alt="QR Code Pix Mercado Pago" 
+                  className={styles.pixQrImage}
+                  style={{ width: "180px", height: "180px", objectFit: "contain", borderRadius: "12px", background: "#ffffff", padding: "8px", border: "1px solid #cbd5e1" }}
+                />
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: "0.85rem", color: "#059669", fontWeight: 700 }}>
+                  <span className={styles.pulseDot} />
+                  <span>Aguardando confirmação do pagamento...</span>
+                </div>
+              </div>
+
+              <div style={{ textTransform: "uppercase", fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textAlign: "left" }}>
+                Código Pix Copia e Cola:
+              </div>
+              <div className={styles.pixCodeBox}>
+                {pixData.qrCode}
+              </div>
+
+              <button 
+                type="button"
+                className={styles.copyPixBtn}
+                onClick={copyPixCode}
+              >
+                {pixData.copied ? (
+                  <>
+                    <CheckCircle2 size={20} /> Código Copiado com Sucesso!
+                  </>
+                ) : (
+                  <>
+                    <QrCode size={20} /> Copiar Código Pix
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  if (pixData?.appointmentId) {
+                    await fetch(`/api/mercadopago/status?appointment_id=${pixData.appointmentId}&payment_id=${pixData.paymentId}&simulate=true`);
+                  }
+                  setPixModalOpen(false);
+                  setShowSuccessModal(true);
+                }}
+                style={{
+                  width: "100%",
+                  background: "linear-gradient(135deg, #10b981, #059669)",
+                  border: "none",
+                  color: "#ffffff",
+                  marginTop: "14px",
+                  padding: "12px",
+                  borderRadius: "12px",
+                  fontSize: "0.88rem",
+                  fontWeight: 700,
+                  cursor: "pointer"
+                }}
+              >
+                Já Paguei / Simular Aprovação Instantânea
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ULTRA MODERN SUCCESS MODAL */}
         {showSuccessModal && (

@@ -162,17 +162,28 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const isPaidOrCompleted = (a: any) => {
+    if (!a || a.status === 'canceled') return false;
+    const p = (a.paymentStatus || "").toLowerCase();
+    const isPaid = p.startsWith("paid_") || p === "paid" || p === "approved";
+    const isCompletedOrConfirmed = a.status === "completed" || a.status === "confirmed";
+    return isPaid || isCompletedOrConfirmed;
+  };
+
   const getUserStats = (clientEmail: string): LoyaltyUserStats => {
-    const completedApps = appointments.filter(a => a.clientEmail === clientEmail && a.status === 'completed');
-    const totalCompleted = completedApps.length;
-    const userClaims = claims.filter(c => c.clientEmail === clientEmail).length;
-    const earnedPrizes = Math.floor(totalCompleted / (settings.stampsRequired || 5));
+    const validApps = appointments.filter(a => 
+      a.clientEmail?.toLowerCase() === clientEmail?.toLowerCase() && isPaidOrCompleted(a)
+    );
+    const totalCompleted = validApps.length;
+    const userClaims = claims.filter(c => c.clientEmail?.toLowerCase() === clientEmail?.toLowerCase()).length;
+    const stampsReq = settings.stampsRequired || 5;
+    const earnedPrizes = Math.floor(totalCompleted / stampsReq);
     const availablePrizes = Math.max(0, earnedPrizes - userClaims);
-    const stamps = totalCompleted % (settings.stampsRequired || 5);
+    const stamps = totalCompleted % stampsReq;
 
     return {
       clientEmail,
-      clientName: completedApps[0]?.clientName || "Cliente",
+      clientName: validApps[0]?.clientName || "Cliente",
       stamps,
       completedAppointments: totalCompleted,
       availablePrizes,
@@ -180,7 +191,7 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
   };
 
   const getAllStats = (): LoyaltyUserStats[] => {
-    const uniqueEmails = Array.from(new Set(appointments.filter(a => a.status === 'completed').map(a => a.clientEmail)));
+    const uniqueEmails = Array.from(new Set(appointments.filter(isPaidOrCompleted).map(a => a.clientEmail)));
     return uniqueEmails.map(email => getUserStats(email)).sort((a, b) => b.stamps - a.stamps);
   };
 

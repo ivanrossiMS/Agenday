@@ -350,3 +350,38 @@
   }
 }
 
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.divider span {
+  padding: 0 14px;
+}
+
+.googleWrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.googleWrapper > div {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+

@@ -1214,3 +1214,169 @@
     padding-top: 8px;
   }
 }
+
+/* Load More Button & Spinner Animation */
+.loadMoreContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.loadMoreBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 24px;
+  border-radius: 30px;
+  background: linear-gradient(135deg, #e05243 0%, #b83224 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(224, 82, 67, 0.25);
+  transition: all 0.25s ease;
+  user-select: none;
+}
+
+.loadMoreBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(224, 82, 67, 0.38);
+  background: linear-gradient(135deg, #e85a4b 0%, #c43728 100%);
+}
+
+.loadMoreBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.loadMoreBtn:disabled {
+  opacity: 0.85;
+  cursor: wait;
+}
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dashPaymentOption {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  margin-bottom: 12px;
+}
+
+.dashPaymentOption:hover {
+  border-color: #b8574c;
+  background: #fffafa;
+}
+
+.dashPaymentOptionSelected {
+  border-color: #b8574c;
+  background: #fff5f3;
+  box-shadow: 0 4px 14px rgba(184, 87, 76, 0.15);
+}
+
+.dashFormGroup {
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.dashFormGroup label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 700;
+  color: #1e293b;
+  font-size: 0.85rem;
+}
+
+.dashFormGroup input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-family: inherit;
+  background: #fdfbfb;
+  color: #0f172a;
+}
+
+.dashFormGroup input:focus {
+  outline: none;
+  border-color: #b8574c;
+  background: #ffffff;
+}
+
+.pulseDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: dashPulse 1.6s infinite;
+}
+
+@keyframes dashPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@media (max-width: 600px) {
+  .modalContent {
+    padding: 20px 16px !important;
+    width: 95vw !important;
+    border-radius: 20px !important;
+    max-height: 90vh !important;
+  }
+
+  .historyItem {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .historyMain {
+    width: 100% !important;
+  }
+
+  .historyActions {
+    width: 100% !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    border-top: 1px dashed #f0e5df;
+    padding-top: 8px;
+    margin-top: 4px;
+  }
+}
+
+

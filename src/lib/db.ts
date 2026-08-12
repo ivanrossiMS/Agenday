@@ -139,6 +139,17 @@ export async function ensureTablesExist(sql: any) {
       );
     `;
 
+    await sql`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS mp_payment_id TEXT;`;
+    await sql`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS mp_payment_method TEXT;`;
+    await sql`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS mp_qr_code TEXT;`;
+    await sql`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS mp_qr_code_base64 TEXT;`;
+    await sql`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS mp_status TEXT;`;
+
+    await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS mp_access_token TEXT;`;
+    await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS mp_public_key TEXT;`;
+    await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS mp_sandbox BOOLEAN DEFAULT true;`;
+    await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS mp_auto_confirm BOOLEAN DEFAULT true;`;
+
     tablesInitialized = true;
   } catch (err) {
     console.error("Error initializing database tables:", err);

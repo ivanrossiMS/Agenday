@@ -826,36 +826,53 @@
 
 /* Ultra Modern Compact Appointment Card */
 .agendaItemTimeline {
-  background: #fff5f5; 
+  background: #fffbeb; 
   border-radius: 16px;
   padding: 14px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
-  border-left: 6px solid var(--color-primary-light);
-  border-top: 1px solid rgba(0,0,0,0.04);
-  border-right: 1px solid rgba(0,0,0,0.04);
-  border-bottom: 1px solid rgba(0,0,0,0.04);
+  border-left: 6px solid #f59e0b;
+  border-top: 1px solid rgba(245, 158, 11, 0.18);
+  border-right: 1px solid rgba(245, 158, 11, 0.18);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.18);
   box-shadow: 0 2px 8px rgba(0,0,0,0.02);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   position: relative;
 }
 
+.agendaItemTimeline.pending {
+  background: #fffbeb;
+  border-left-color: #f59e0b;
+  border-top-color: rgba(245, 158, 11, 0.18);
+  border-right-color: rgba(245, 158, 11, 0.18);
+  border-bottom-color: rgba(245, 158, 11, 0.18);
+}
+
 .agendaItemTimeline.confirmed {
   background: #f0fdf4;
   border-left-color: #22c55e;
+  border-top-color: rgba(34, 197, 94, 0.18);
+  border-right-color: rgba(34, 197, 94, 0.18);
+  border-bottom-color: rgba(34, 197, 94, 0.18);
 }
 
 .agendaItemTimeline.completed {
   background: #f8fafc;
   border-left-color: #94a3b8;
+  border-top-color: rgba(148, 163, 184, 0.18);
+  border-right-color: rgba(148, 163, 184, 0.18);
+  border-bottom-color: rgba(148, 163, 184, 0.18);
 }
 
 .agendaItemTimeline.canceled {
   background: #fef2f2;
   border-left-color: #ef4444;
+  border-top-color: rgba(239, 68, 68, 0.18);
+  border-right-color: rgba(239, 68, 68, 0.18);
+  border-bottom-color: rgba(239, 68, 68, 0.18);
 }
 
 .agendaItemTimeline:hover {
@@ -874,7 +891,7 @@
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: #f59e0b;
   color: white;
   display: flex;
   align-items: center;
@@ -885,12 +902,20 @@
   overflow: hidden;
 }
 
+.agendaItemTimeline.pending .cardAvatar {
+  background: #f59e0b;
+}
+
 .agendaItemTimeline.confirmed .cardAvatar {
   background: #22c55e;
 }
 
 .agendaItemTimeline.completed .cardAvatar {
   background: #94a3b8;
+}
+
+.agendaItemTimeline.canceled .cardAvatar {
+  background: #ef4444;
 }
 
 .cardDetails {
@@ -1684,9 +1709,12 @@
 @media (max-width: 768px) {
   .adminLayout {
     flex-direction: column;
-    width: 100vw;
+    width: 100%;
     max-width: 100vw;
+    margin: 0 auto;
     overflow-x: hidden;
+    align-items: center;
+    justify-content: flex-start;
   }
 
   .sidebar {
@@ -1698,14 +1726,16 @@
     right: 0;
     border-right: none;
     border-top: 1px solid rgba(212, 163, 115, 0.35);
-    padding: 4px 6px;
+    padding: 4px 0;
     position: fixed;
     z-index: 9999;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(253, 242, 240, 0.98) 45%, rgba(254, 243, 199, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(253, 242, 240, 0.98) 45%, rgba(254, 243, 199, 0.95) 100%);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     box-shadow: 0 -8px 30px rgba(168, 81, 69, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    flex-direction: row;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
   .sidebarLogo {
@@ -1716,15 +1746,17 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-around;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    padding: 0 8px;
+    padding: 0 4px;
     height: 100%;
-    margin: 0;
-    gap: 4px;
+    margin: 0 auto;
+    gap: 2px;
     width: 100%;
+    max-width: 600px;
+    box-sizing: border-box;
   }
 
   .sidebarNav::-webkit-scrollbar {
@@ -1732,11 +1764,12 @@
   }
 
   .sidebarTab {
-    flex: 0 0 auto;
-    min-width: 62px;
-    padding: 6px 4px;
+    flex: 1 1 0px;
+    min-width: 44px;
+    max-width: 72px;
+    padding: 6px 2px;
     gap: 3px;
-    font-size: 0.64rem;
+    font-size: 0.62rem;
     font-weight: 600;
     border-radius: 12px;
     justify-content: center;
@@ -1778,14 +1811,20 @@
     max-width: 100vw;
     margin-bottom: 74px;
     overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
   .adminHeader {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
     padding: 12px 16px;
     gap: 12px;
     width: 100%;
+    max-width: 100vw;
     box-sizing: border-box;
     background: linear-gradient(135deg, #ffffff 0%, rgba(253, 242, 240, 0.98) 50%, rgba(254, 243, 199, 0.95) 100%);
     backdrop-filter: blur(16px);
@@ -1801,8 +1840,10 @@
   .headerTopRow {
     display: flex;
     width: 100%;
+    max-width: 600px;
     justify-content: space-between;
     align-items: center;
+    margin: 0 auto;
   }
 
   .mobileHeaderBrand {
@@ -1820,6 +1861,8 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 6px;
     width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
     overflow: hidden;
     padding-bottom: 0;
   }
@@ -1890,16 +1933,23 @@
   }
 
   .mainContent {
-    padding: 12px;
+    padding: 16px 12px;
     width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
     box-sizing: border-box;
     overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
   .grid {
     grid-template-columns: 1fr !important;
     gap: 16px;
     width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
   }
 
   .card {
@@ -1907,13 +1957,17 @@
     border-radius: 14px;
     margin-bottom: 16px;
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
     overflow-x: hidden;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .agendaHeaderArea {
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
+    text-align: center;
     gap: 12px;
     margin-bottom: 16px;
     padding-bottom: 16px;
@@ -1921,7 +1975,8 @@
 
   .agendaDateSelector {
     width: 100%;
-    justify-content: flex-start;
+    justify-content: center;
+    align-items: center;
   }
 
   .agendaDateTitle {
@@ -2113,15 +2168,42 @@
     padding: 12px;
   }
 
-  /* Loyalty Tab */
+  /* Loyalty Tab Mobile Centering */
   .loyaltyWrapper {
     padding: 12px;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
   }
 
   .loyaltyHeaderRow {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .loyaltyHeaderLeft {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+  }
+
+  .loyaltyHeaderRight {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
   }
 
   .loyaltyKpiGrid {
@@ -3012,5 +3094,61 @@
   .clientProfileBtn {
     padding: 6px 12px;
     font-size: 0.8rem;
+  }
+}
+
+/* Load More Button & Spinner Animation */
+.loadMoreContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.loadMoreBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 28px;
+  border-radius: 30px;
+  background: linear-gradient(135deg, #e05243 0%, #b83224 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 0.92rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(224, 82, 67, 0.25);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.loadMoreBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(224, 82, 67, 0.38);
+  background: linear-gradient(135deg, #e85a4b 0%, #c43728 100%);
+}
+
+.loadMoreBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.loadMoreBtn:disabled {
+  opacity: 0.85;
+  cursor: wait;
+}
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }

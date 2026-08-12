@@ -17,6 +17,7 @@ type User = {
 type AuthContextType = {
   user: User | null;
   login: (email: string, pass: string) => Promise<{ success: boolean; user?: User; error?: string }>;
+  loginWithGoogle: (googleUser: { name: string; email: string; picture?: string; sub?: string }) => Promise<{ success: boolean; user?: User; error?: string }>;
   logout: () => void;
   register: (name: string, email: string, pass: string, birthDate?: string, phone?: string) => User;
   updateProfile: (data: Partial<User>) => void;
@@ -184,6 +185,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { success: false, error: "Usuário não encontrado. Por favor, faça seu cadastro no botão 'Cadastre-se aqui'." };
   };
 
+  const loginWithGoogle = async (googleUser: { name: string; email: string; picture?: string; sub?: string }): Promise<{ success: boolean; user?: User; error?: string }> => {
+    const lowerEmail = googleUser.email.toLowerCase().trim();
+    let matchedUser: User | null = null;
+
+    try {
+      const res = await fetch("/api/clients");
+      const json = await res.json();
+      if (json.data && Array.isArray(json.data)) {
+        const found = json.data.find((c: any) => c.email && c.email.toLowerCase() === lowerEmail);
+        if (found) {
+          matchedUser = {
+            id: found.id,
+            name: found.name || googleUser.name,
+            email: lowerEmail,
+            role: lowerEmail === "brasilfrancielli@gmail.com" ? "admin" : "client",
+            phone: found.phone || "",
+            birthDate: found.birth_date || "",
+            photo: found.photo_url || googleUser.picture || "",
+            status: found.status || "active"
+          };
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao sincronizar cliente Google via API:", err);
+    }
+
+    if (!matchedUser) {
+      const role = lowerEmail === "brasilfrancielli@gmail.com" ? "admin" : "client";
+      const newId = "client_g_" + (googleUser.sub || Date.now());
+      matchedUser = {
+        id: newId,
+        name: googleUser.name,
+        email: lowerEmail,
+        role: role,
+        photo: googleUser.picture || "",
+        status: "active"
+      };
+
+      fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: newId,
+          name: googleUser.name,
+          email: lowerEmail,
+          photoUrl: googleUser.picture || "",
+          status: "active"
+        })
+      }).catch(err => console.error("Erro ao registrar cliente Google via API:", err));
+    }
+
+    setUser(matchedUser);
+    localStorage.setItem("@agenday:user", JSON.stringify(matchedUser));
+
+    const usersListStr = localStorage.getItem("@agenday:users_list");
+    let usersList: User[] = [];
+    if (usersListStr) {
+      try { usersList = JSON.parse(usersListStr); } catch (e) {}
+    }
+    usersList = usersList.filter(u => u.email.toLowerCase() !== lowerEmail);
+    usersList.push(matchedUser);
+    localStorage.setItem("@agenday:users_list", JSON.stringify(usersList));
+
+    return { success: true, user: matchedUser };
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem("@agenday:user");
@@ -335,6 +402,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{ 
       user, 
       login, 
+      loginWithGoogle,
       logout, 
       register, 
       updateProfile, 

@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
 export type ApptStatus = "confirmed" | "pending" | "completed" | "canceled" | "rescheduled";
-export type PaymentStatus = "paid_pix" | "paid_credit" | "paid_debit" | "open";
+export type PaymentStatus = "paid_pix" | "paid_credit" | "paid_debit" | "open" | "refunded";
 
 export interface Appointment {
   id: number;
@@ -20,7 +20,8 @@ export interface Appointment {
 
 type AppointmentsContextType = {
   appointments: Appointment[];
-  addAppointment: (appt: Omit<Appointment, "id">) => void;
+  refreshAppointments: () => Promise<void>;
+  addAppointment: (appt: Omit<Appointment, "id"> & { id?: number }) => number;
   updateStatus: (id: number, status: ApptStatus) => void;
   updatePayment: (id: number, paymentStatus: PaymentStatus) => void;
   updateAppointment: (id: number, updates: Partial<Appointment>) => void;
@@ -265,20 +266,18 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addAppointment = async (appt: Omit<Appointment, "id">) => {
-    const newId = Date.now();
+  const addAppointment = (appt: Omit<Appointment, "id"> & { id?: number }) => {
+    const newId = appt.id || Date.now();
     const newAppt: Appointment = { ...appt, id: newId };
     setAppointments(prev => [...prev, newAppt]);
 
-    try {
-      await fetch("/api/appointments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newAppt)
-      });
-    } catch (e) {
-      console.error("Erro ao adicionar agendamento:", e);
-    }
+    fetch("/api/appointments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newAppt)
+    }).catch(e => console.error("Erro ao adicionar agendamento:", e));
+
+    return newId;
   };
 
   const updateStatus = async (id: number, status: ApptStatus) => {
@@ -298,10 +297,51 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshAppointments = async () => {
+    try {
+      const res = await fetch("/api/appointments");
+      const apptsRes = await res.json();
+      if (apptsRes.configured && Array.isArray(apptsRes.data)) {
+        const formatted: Appointment[] = apptsRes.data.map((item: any) => ({
+          id: Number(item.id),
+          date: item.date,
+          time: item.time,
+          endTime: item.end_time || undefined,
+          service: item.service,
+          price: Number(item.price) || 0,
+          status: item.status as ApptStatus,
+          paymentStatus: item.payment_status as PaymentStatus,
+          clientName: item.client_name,
+          clientEmail: item.client_email,
+        })).filter((a: Appointment) => a.clientEmail !== "cliente@vip.com");
+
+        setAppointments(formatted);
+        localStorage.setItem("@agenday:appointments", JSON.stringify(formatted));
+      }
+    } catch (e) {
+      console.error("Error refreshing appointments:", e);
+    }
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshAppointments();
+    }, 4000);
+
+    const handleFocus = () => refreshAppointments();
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
+
   const updatePayment = async (id: number, paymentStatus: PaymentStatus) => {
     const target = appointments.find(a => a.id === id);
     if (!target) return;
-    const updated = { ...target, paymentStatus };
+    const newStatus = (paymentStatus.startsWith('paid_') && target.status === 'pending') ? ('confirmed' as ApptStatus) : target.status;
+    const updated = { ...target, paymentStatus, status: newStatus };
     setAppointments(prev => prev.map(a => a.id === id ? updated : a));
 
     try {
@@ -333,7 +373,11 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteAppointment = async (id: number) => {
-    setAppointments(prev => prev.filter(a => a.id !== id));
+    setAppointments(prev => {
+      const filtered = prev.filter(a => a.id !== id);
+      localStorage.setItem("@agenday:appointments", JSON.stringify(filtered));
+      return filtered;
+    });
 
     try {
       await fetch(`/api/appointments?id=${id}`, { method: "DELETE" });
@@ -345,6 +389,7 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
   return (
     <AppointmentsContext.Provider value={{ 
       appointments, 
+      refreshAppointments,
       addAppointment, 
       updateStatus, 
       updatePayment, 

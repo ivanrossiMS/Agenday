@@ -6,6 +6,8 @@ import Link from "next/link";
 import { ArrowLeft, Mail, Lock, User as UserIcon, CalendarDays, MessageSquare, AlertCircle, Sparkles, CheckCircle2, Loader2, KeyRound } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
+import { GoogleLogin } from "@react-oauth/google";
+import { jwtDecode } from "jwt-decode";
 import styles from "./page.module.css";
 
 type ViewMode = "login" | "register" | "forgot";
@@ -23,7 +25,7 @@ export default function LoginPage() {
   const [devUrl, setDevUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { login, register, requestPasswordReset } = useAuth();
+  const { login, loginWithGoogle, register, requestPasswordReset } = useAuth();
   const { settings } = useSiteSettings();
   const router = useRouter();
 
@@ -40,6 +42,36 @@ export default function LoginPage() {
       return formatted;
     }
     return val;
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setErrorMsg("");
+    if (!credentialResponse.credential) {
+      setErrorMsg("Não foi possível obter dados de autenticação do Google.");
+      return;
+    }
+    try {
+      const decoded: any = jwtDecode(credentialResponse.credential);
+      const result = await loginWithGoogle({
+        name: decoded.name || decoded.given_name || "Cliente",
+        email: decoded.email,
+        picture: decoded.picture,
+        sub: decoded.sub
+      });
+
+      if (result.success && result.user) {
+        if (result.user.role === "admin") {
+          router.push("/admin");
+        } else {
+          router.push("/dashboard");
+        }
+      } else {
+        setErrorMsg(result.error || "Erro ao realizar login via Google.");
+      }
+    } catch (err) {
+      console.error("Erro ao decodificar token do Google:", err);
+      setErrorMsg("Erro ao processar login com Google. Tente novamente.");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -287,6 +319,24 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
+          )}
+
+          {viewMode !== "forgot" && (
+            <>
+              <div className={styles.divider}>
+                <span>OU CONTINAR COM</span>
+              </div>
+
+              <div className={styles.googleWrapper}>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setErrorMsg("Falha na autenticação com o Google. Certifique-se de configurar o NEXT_PUBLIC_GOOGLE_CLIENT_ID.")}
+                  shape="pill"
+                  theme="outline"
+                  text="continue_with"
+                />
+              </div>
+            </>
           )}
 
           <div className={styles.toggleAuth}>
