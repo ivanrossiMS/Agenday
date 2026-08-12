@@ -71,19 +71,61 @@ export async function POST(req: Request) {
 
       // If not updated by mp_payment_id, try description/external_reference
       if (!updated || updated.length === 0) {
-        // Parse appointment ID from description e.g. "Agendamento #12345..."
-        const desc = mpData.description || "";
-        const match = desc.match(/#(\d+)/);
-        if (match && match[1]) {
-          const apptId = Number(match[1]);
-          await sql`
-            UPDATE appointments 
-            SET mp_payment_id = ${strPaymentId},
-                mp_status = ${mpStatus},
-                payment_status = ${newPaymentStatus},
-                status = ${isPaid && config.autoConfirm ? 'confirmed' : 'pending'}
-            WHERE id = ${apptId}
-          `;
+        let apptId: number | null = null;
+        let extData: any = null;
+
+        if (mpData.external_reference) {
+          try {
+            extData = JSON.parse(mpData.external_reference);
+            apptId = Number(extData.appointmentId || extData.id);
+          } catch {
+            apptId = Number(mpData.external_reference);
+          }
+        }
+        if (!apptId && mpData.metadata?.appointment_id) {
+          apptId = Number(mpData.metadata.appointment_id);
+        }
+        if (!apptId) {
+          const desc = mpData.description || "";
+          const match = desc.match(/#(\d+)/);
+          if (match && match[1]) apptId = Number(match[1]);
+        }
+
+        if (apptId) {
+          const existing = await sql`SELECT id FROM appointments WHERE id = ${apptId} LIMIT 1`;
+          if (existing && existing.length > 0) {
+            await sql`
+              UPDATE appointments 
+              SET mp_payment_id = ${strPaymentId},
+                  mp_status = ${mpStatus},
+                  payment_status = ${newPaymentStatus},
+                  status = ${isPaid && config.autoConfirm ? 'confirmed' : 'pending'}
+              WHERE id = ${apptId}
+            `;
+          } else if (isPaid) {
+            // Create the confirmed appointment in DB if it was paid
+            const date = extData?.date || mpData.metadata?.date;
+            const time = extData?.time || mpData.metadata?.time;
+            const endTime = extData?.endTime || mpData.metadata?.end_time;
+            const service = extData?.service || mpData.metadata?.service || mpData.description;
+            const price = extData?.price || mpData.metadata?.price || mpData.transaction_amount;
+            const clientName = extData?.clientName || mpData.metadata?.client_name || mpData.payer?.first_name || 'Cliente';
+            const clientEmail = extData?.clientEmail || mpData.metadata?.client_email || mpData.payer?.email || '';
+
+            if (date && time && service) {
+              await sql`
+                INSERT INTO appointments (
+                  id, date, time, end_time, service, price, status, payment_status, client_name, client_email,
+                  mp_payment_id, mp_payment_method, mp_status
+                )
+                VALUES (
+                  ${apptId}, ${date}, ${time}, ${endTime || null}, ${service}, ${Number(price) || 0},
+                  'confirmed', ${newPaymentStatus}, ${clientName}, ${clientEmail},
+                  ${strPaymentId}, ${paymentMethodId || 'pix'}, ${mpStatus}
+                )
+              `;
+            }
+          }
         }
       }
     }

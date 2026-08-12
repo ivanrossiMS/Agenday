@@ -62,6 +62,16 @@ function AgendarFlow() {
     appointmentId: number;
     copied: boolean;
   } | null>(null);
+  const [pendingApptData, setPendingApptData] = useState<{
+    id: number;
+    date: string;
+    time: string;
+    endTime: string;
+    service: string;
+    price: number;
+    clientName: string;
+    clientEmail: string;
+  } | null>(null);
 
   // Credit Card Form State
   const [cardNumber, setCardNumber] = useState("");
@@ -204,8 +214,32 @@ function AgendarFlow() {
         const res = await fetch(`/api/mercadopago/status?appointment_id=${pixData.appointmentId}&payment_id=${pixData.paymentId}`);
         const data = await res.json();
 
-        if (data.isPaid) {
+        if (data.isPaid && pendingApptData) {
           clearInterval(interval);
+          addAppointment({
+            id: pendingApptData.id,
+            date: pendingApptData.date,
+            time: pendingApptData.time,
+            endTime: pendingApptData.endTime,
+            service: pendingApptData.service,
+            price: pendingApptData.price,
+            status: 'confirmed',
+            paymentStatus: 'paid_pix',
+            clientName: pendingApptData.clientName,
+            clientEmail: pendingApptData.clientEmail,
+            mpPaymentId: pixData.paymentId,
+            mpPaymentMethod: 'pix',
+            mpStatus: 'approved'
+          });
+
+          setConfirmedApptData({
+            service: pendingApptData.service,
+            date: pendingApptData.date,
+            time: pendingApptData.time,
+            price: pendingApptData.price,
+            paymentStatus: 'paid_pix'
+          });
+
           setPixModalOpen(false);
           setShowSuccessModal(true);
         }
@@ -215,7 +249,7 @@ function AgendarFlow() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [pixModalOpen, pixData]);
+  }, [pixModalOpen, pixData, pendingApptData]);
 
   const copyPixCode = () => {
     if (!pixData?.qrCode) return;
@@ -269,16 +303,13 @@ function AgendarFlow() {
     if (paymentMethod === 'pix') {
       setIsProcessingPayment(true);
       try {
-        // Save appointment initially as open
-        addAppointment({
+        setPendingApptData({
           id: appointmentId,
           date: selectedDateStr,
           time: selectedTime,
           endTime: endTime,
           service: servicesStr,
           price: totalPrice,
-          status: 'pending',
-          paymentStatus: 'open',
           clientName: user.name,
           clientEmail: user.email,
         });
@@ -291,7 +322,10 @@ function AgendarFlow() {
             amount: totalPrice,
             serviceName: servicesStr,
             clientName: user.name,
-            clientEmail: user.email
+            clientEmail: user.email,
+            date: selectedDateStr,
+            time: selectedTime,
+            endTime
           })
         });
 
@@ -300,16 +334,9 @@ function AgendarFlow() {
 
         if (!res.ok || data.error) {
           setPaymentError(data.error || "Não foi possível gerar o código Pix.");
+          setPendingApptData(null);
           return;
         }
-
-        setConfirmedApptData({
-          service: servicesStr,
-          date: selectedDateStr,
-          time: selectedTime,
-          price: totalPrice,
-          paymentStatus: 'paid_pix'
-        });
 
         setPixData({
           qrCode: data.qrCode,
@@ -321,6 +348,7 @@ function AgendarFlow() {
         setPixModalOpen(true);
       } catch (err: any) {
         setIsProcessingPayment(false);
+        setPendingApptData(null);
         setPaymentError("Ocorreu um erro ao conectar com o serviço Pix.");
       }
       return;
@@ -359,7 +387,10 @@ function AgendarFlow() {
             expirationMonth: expMonth,
             expirationYear: expYear,
             securityCode: cvv,
-            cpf: cardCpf.replace(/\D/g, "")
+            cpf: cardCpf.replace(/\D/g, ""),
+            date: selectedDateStr,
+            time: selectedTime,
+            endTime
           })
         });
 
@@ -383,6 +414,9 @@ function AgendarFlow() {
           paymentStatus: 'paid_credit',
           clientName: user.name,
           clientEmail: user.email,
+          mpPaymentId: data.paymentId,
+          mpPaymentMethod: 'credit_card',
+          mpStatus: 'approved'
         });
 
         setConfirmedApptData({
@@ -839,6 +873,31 @@ function AgendarFlow() {
                 onClick={async () => {
                   if (pixData?.appointmentId) {
                     await fetch(`/api/mercadopago/status?appointment_id=${pixData.appointmentId}&payment_id=${pixData.paymentId}&simulate=true`);
+                  }
+                  if (pendingApptData) {
+                    addAppointment({
+                      id: pendingApptData.id,
+                      date: pendingApptData.date,
+                      time: pendingApptData.time,
+                      endTime: pendingApptData.endTime,
+                      service: pendingApptData.service,
+                      price: pendingApptData.price,
+                      status: 'confirmed',
+                      paymentStatus: 'paid_pix',
+                      clientName: pendingApptData.clientName,
+                      clientEmail: pendingApptData.clientEmail,
+                      mpPaymentId: pixData?.paymentId,
+                      mpPaymentMethod: 'pix',
+                      mpStatus: 'approved'
+                    });
+
+                    setConfirmedApptData({
+                      service: pendingApptData.service,
+                      date: pendingApptData.date,
+                      time: pendingApptData.time,
+                      price: pendingApptData.price,
+                      paymentStatus: 'paid_pix'
+                    });
                   }
                   setPixModalOpen(false);
                   setShowSuccessModal(true);

@@ -16,6 +16,11 @@ export interface Appointment {
   paymentStatus: PaymentStatus;
   clientName: string;
   clientEmail: string;
+  mpPaymentId?: string;
+  mpPaymentMethod?: string;
+  mpQrCode?: string;
+  mpQrCodeBase64?: string;
+  mpStatus?: string;
 }
 
 type AppointmentsContextType = {
@@ -44,7 +49,12 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function loadData() {
       const savedAppts = localStorage.getItem("@agenday:appointments");
-      const localAppts: Appointment[] = savedAppts ? JSON.parse(savedAppts).filter((a: any) => a.clientEmail !== "cliente@vip.com") : [];
+      const localAppts: Appointment[] = savedAppts 
+        ? JSON.parse(savedAppts).filter((a: any) => 
+            a.clientEmail !== "cliente@vip.com" &&
+            !((a.mpPaymentMethod || a.mpPaymentId) && (a.paymentStatus === "open" || a.status === "pending"))
+          ) 
+        : [];
       const savedClosed = localStorage.getItem("@agenday:closedDates");
       const localClosed: string[] = savedClosed ? JSON.parse(savedClosed) : [];
       const savedBlocked = localStorage.getItem("@agenday:blockedTimeSlots");
@@ -70,7 +80,15 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
               paymentStatus: item.payment_status as PaymentStatus,
               clientName: item.client_name,
               clientEmail: item.client_email,
-            })).filter((a: Appointment) => a.clientEmail !== "cliente@vip.com");
+              mpPaymentId: item.mp_payment_id || undefined,
+              mpPaymentMethod: item.mp_payment_method || undefined,
+              mpQrCode: item.mp_qr_code || undefined,
+              mpQrCodeBase64: item.mp_qr_code_base64 || undefined,
+              mpStatus: item.mp_status || undefined,
+            })).filter((a: Appointment) => 
+              a.clientEmail !== "cliente@vip.com" &&
+              !((a.mpPaymentMethod || a.mpPaymentId) && (a.paymentStatus === "open" || a.status === "pending"))
+            );
             setAppointments(formatted);
             localStorage.setItem("@agenday:appointments", JSON.stringify(formatted));
           } else if (localAppts.length > 0) {
@@ -317,7 +335,15 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
           paymentStatus: item.payment_status as PaymentStatus,
           clientName: item.client_name,
           clientEmail: item.client_email,
-        })).filter((a: Appointment) => a.clientEmail !== "cliente@vip.com");
+          mpPaymentId: item.mp_payment_id || undefined,
+          mpPaymentMethod: item.mp_payment_method || undefined,
+          mpQrCode: item.mp_qr_code || undefined,
+          mpQrCodeBase64: item.mp_qr_code_base64 || undefined,
+          mpStatus: item.mp_status || undefined,
+        })).filter((a: Appointment) => 
+          a.clientEmail !== "cliente@vip.com" &&
+          !((a.mpPaymentMethod || a.mpPaymentId) && (a.paymentStatus === "open" || a.status === "pending"))
+        );
 
         setAppointments(formatted);
         localStorage.setItem("@agenday:appointments", JSON.stringify(formatted));

@@ -18,11 +18,13 @@ export async function POST(req: Request) {
       installments,
       cardholderName,
       cpf,
-      // Direct raw card details if token is created server-side or in sandbox
       cardNumber,
       expirationMonth,
       expirationYear,
-      securityCode
+      securityCode,
+      date,
+      time,
+      endTime
     } = body;
 
     if (!amount || amount <= 0) {
@@ -100,10 +102,32 @@ export async function POST(req: Request) {
         ? `${origin}/api/mercadopago/webhook`
         : "https://franmarinho.netlify.app/api/mercadopago/webhook";
 
+      const extRefData = JSON.stringify({
+        appointmentId,
+        date,
+        time,
+        endTime,
+        service: serviceName,
+        price: amount,
+        clientName,
+        clientEmail
+      });
+
       const mpPayload: any = {
         transaction_amount: Number(amount),
         token: cardToken,
         description: `Agendamento #${appointmentId} - ${serviceName || "Serviço Agenday"}`,
+        external_reference: extRefData,
+        metadata: {
+          appointment_id: appointmentId,
+          date,
+          time,
+          end_time: endTime,
+          service: serviceName,
+          price: amount,
+          client_name: clientName,
+          client_email: clientEmail
+        },
         installments: Number(installments) || 1,
         payment_method_id: detectedMethod,
         binary_mode: true,
@@ -190,19 +214,34 @@ export async function POST(req: Request) {
     const isPaid = mpStatus === "approved";
     const paymentStatus = isPaid ? "paid_credit" : "pending";
 
-    // Update appointment status in DB
-    if (sql && appointmentId) {
+    // Update or insert appointment status in DB when paid
+    if (sql && appointmentId && isPaid) {
       try {
         await ensureTablesExist(sql);
-        await sql`
-          UPDATE appointments 
-          SET mp_payment_id = ${mpPaymentId},
-              mp_payment_method = 'credit_card',
-              mp_status = ${mpStatus},
-              payment_status = ${paymentStatus},
-              status = ${isPaid && config.autoConfirm ? 'confirmed' : 'pending'}
-          WHERE id = ${Number(appointmentId)}
-        `;
+        const existing = await sql`SELECT id FROM appointments WHERE id = ${Number(appointmentId)} LIMIT 1`;
+        if (existing && existing.length > 0) {
+          await sql`
+            UPDATE appointments 
+            SET mp_payment_id = ${mpPaymentId},
+                mp_payment_method = 'credit_card',
+                mp_status = ${mpStatus},
+                payment_status = ${paymentStatus},
+                status = ${isPaid && config.autoConfirm ? 'confirmed' : 'pending'}
+            WHERE id = ${Number(appointmentId)}
+          `;
+        } else if (date && time && serviceName) {
+          await sql`
+            INSERT INTO appointments (
+              id, date, time, end_time, service, price, status, payment_status, client_name, client_email,
+              mp_payment_id, mp_payment_method, mp_status
+            )
+            VALUES (
+              ${Number(appointmentId)}, ${date}, ${time}, ${endTime || null}, ${serviceName}, ${Number(amount) || 0},
+              'confirmed', 'paid_credit', ${clientName || ''}, ${clientEmail || ''},
+              ${mpPaymentId}, 'credit_card', ${mpStatus}
+            )
+          `;
+        }
       } catch (dbErr) {
         console.error("Error updating appointment with Card payment:", dbErr);
       }

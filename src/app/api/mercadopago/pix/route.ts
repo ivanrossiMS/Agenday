@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   
   try {
     const body = await req.json();
-    const { appointmentId, amount, serviceName, clientName, clientEmail, clientCpf } = body;
+    const { appointmentId, amount, serviceName, clientName, clientEmail, clientCpf, date, time, endTime } = body;
 
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: "Valor do agendamento inválido." }, { status: 400 });
@@ -33,10 +33,32 @@ export async function POST(req: Request) {
         ? `${origin}/api/mercadopago/webhook`
         : "https://franmarinho.netlify.app/api/mercadopago/webhook";
 
+      const extRefData = JSON.stringify({
+        appointmentId,
+        date,
+        time,
+        endTime,
+        service: serviceName,
+        price: amount,
+        clientName,
+        clientEmail
+      });
+
       const mpPayload: any = {
         transaction_amount: Number(amount),
         description: `Agendamento #${appointmentId} - ${serviceName || "Serviço Agenday"}`,
         payment_method_id: "pix",
+        external_reference: extRefData,
+        metadata: {
+          appointment_id: appointmentId,
+          date,
+          time,
+          end_time: endTime,
+          service: serviceName,
+          price: amount,
+          client_name: clientName,
+          client_email: clientEmail
+        },
         payer: {
           email: clientEmail || "cliente@agenday.com",
           first_name: firstName,
@@ -87,24 +109,25 @@ export async function POST(req: Request) {
     if (!qrCode) {
       mpPaymentId = `PIX_SIM_${Date.now()}`;
       qrCode = `00020126580014br.gov.bcb.pix0136${mpPaymentId}5204000053039865405${Number(amount).toFixed(2)}5802BR5915AGENDAY BEAUTY6009SAO PAULO62070503***6304ABCD`;
-      // SVG / PNG Base64 mock placeholder for demonstration
       qrCodeBase64 = ""; 
     }
 
-    // Update appointment in DB if appointmentId provided
+    // Update existing appointment in DB if appointmentId already exists in DB
     if (sql && appointmentId) {
       try {
         await ensureTablesExist(sql);
-        await sql`
-          UPDATE appointments 
-          SET mp_payment_id = ${mpPaymentId},
-              mp_payment_method = 'pix',
-              mp_qr_code = ${qrCode},
-              mp_qr_code_base64 = ${qrCodeBase64},
-              mp_status = ${mpStatus},
-              payment_status = 'pending'
-          WHERE id = ${Number(appointmentId)}
-        `;
+        const existing = await sql`SELECT id FROM appointments WHERE id = ${Number(appointmentId)} LIMIT 1`;
+        if (existing && existing.length > 0) {
+          await sql`
+            UPDATE appointments 
+            SET mp_payment_id = ${mpPaymentId},
+                mp_payment_method = 'pix',
+                mp_qr_code = ${qrCode},
+                mp_qr_code_base64 = ${qrCodeBase64},
+                mp_status = ${mpStatus}
+            WHERE id = ${Number(appointmentId)}
+          `;
+        }
       } catch (dbErr) {
         console.error("Error updating appointment with Pix data:", dbErr);
       }
