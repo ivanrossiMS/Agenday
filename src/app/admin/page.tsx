@@ -730,7 +730,7 @@ export default function AdminDashboard() {
 
   const handleSendReminder = (phone: string, clientName: string) => {
     const msg = `Olá ${clientName}! Passando para lembrar do nosso agendamento amanhã. Podemos confirmar? ✨`;
-    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   const handleSendReminderForAppt = (apt: any) => {
@@ -748,11 +748,12 @@ export default function AdminDashboard() {
       }
     }
 
-    const salonName = (settings as any).salonName || "Nosso Salão";
-    const msg = `Olá, ${apt.clientName}! 🌸%0A%0APassando para lembrar do seu agendamento no *${salonName}*:%0A📅 *Data:* ${apt.date}%0A⏰ *Horário:* ${apt.time}%0A💅 *Serviço:* ${apt.service}%0A%0APodemos confirmar a sua presença? Aguardamos você! ✨`;
+    const salonName = "Fran Marinho | Studio de Beleza";
+    const msg = `Olá, ${apt.clientName}! 🌸\n\nPassando para lembrar do seu agendamento no *${salonName}*:\n📅 *Data:* ${apt.date}\n⏰ *Horário:* ${apt.time}\n💅 *Serviço:* ${apt.service}\n\nPodemos confirmar a sua presença? Aguardamos você! ✨`;
+    const encoded = encodeURIComponent(msg);
 
     if (digits) {
-      window.open(`https://wa.me/${digits}?text=${msg}`, '_blank');
+      window.open(`https://wa.me/${digits}?text=${encoded}`, '_blank');
     } else {
       const targetPhone = prompt(`Digite o WhatsApp do(a) cliente ${apt.clientName}:`, "");
       if (targetPhone) {
@@ -760,7 +761,7 @@ export default function AdminDashboard() {
         if (cleanDigits.length <= 11 && !cleanDigits.startsWith("55")) {
           cleanDigits = "55" + cleanDigits;
         }
-        window.open(`https://wa.me/${cleanDigits}?text=${msg}`, '_blank');
+        window.open(`https://wa.me/${cleanDigits}?text=${encoded}`, '_blank');
       }
     }
   };
@@ -780,11 +781,12 @@ export default function AdminDashboard() {
       }
     }
 
-    const salonName = (settings as any).salonName || "Nosso Salão";
-    const msg = `Olá, ${apt.clientName}! 🌸%0A%0AConfirmamos o *cancelamento* do seu agendamento no *${salonName}*:%0A📅 *Data:* ${apt.date}%0A⏰ *Horário:* ${apt.time}%0A💅 *Serviço:* ${apt.service}%0A%0AO seu agendamento foi cancelado com sucesso. Se desejar reagendar em outro momento, estamos à disposição! ✨`;
+    const salonName = "Fran Marinho | Studio de Beleza";
+    const msg = `Olá, ${apt.clientName}! 🌸\n\nConfirmamos o *cancelamento* do seu agendamento no *${salonName}*:\n📅 *Data:* ${apt.date}\n⏰ *Horário:* ${apt.time}\n💅 *Serviço:* ${apt.service}\n\nO seu agendamento foi cancelado com sucesso. Se desejar reagendar em outro momento, estamos à disposição! ✨`;
+    const encoded = encodeURIComponent(msg);
 
     if (digits) {
-      window.open(`https://wa.me/${digits}?text=${msg}`, '_blank');
+      window.open(`https://wa.me/${digits}?text=${encoded}`, '_blank');
     } else {
       const targetPhone = prompt(`Digite o WhatsApp do(a) cliente ${apt.clientName} para enviar a confirmação do cancelamento:`, "");
       if (targetPhone) {
@@ -792,7 +794,7 @@ export default function AdminDashboard() {
         if (cleanDigits.length <= 11 && !cleanDigits.startsWith("55")) {
           cleanDigits = "55" + cleanDigits;
         }
-        window.open(`https://wa.me/${cleanDigits}?text=${msg}`, '_blank');
+        window.open(`https://wa.me/${cleanDigits}?text=${encoded}`, '_blank');
       }
     }
   };
@@ -806,20 +808,18 @@ export default function AdminDashboard() {
     }
     const salonName = "Fran Marinho | Studio de Beleza";
 
-
-    const msg = `Olá ${clientName}! 🥳🎂🎉%0A%0AToda a nossa equipe do *${salonName}* deseja a você um Feliz Aniversário repleto de saúde, paz, alegria e muitas realizações! ✨%0A%0APara celebrar esse dia tão especial com você, preparamos um presente exclusivo no seu próximo atendimento conosco! 🎁💖%0A%0AVenha comemorar sua beleza com a gente! 🥰✨`;
-    window.open(`https://wa.me/${targetPhone}?text=${msg}`, '_blank');
+    const msg = `Olá ${clientName}! 🥳🎂🎉\n\nToda a nossa equipe do *${salonName}* deseja a você um Feliz Aniversário repleto de saúde, paz, alegria e muitas realizações! ✨\n\nPara celebrar esse dia tão especial com você, preparamos um presente exclusivo no seu próximo atendimento conosco! 🎁💖\n\nVenha comemorar sua beleza com a gente! 🥰✨`;
+    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-
   const handleSendReceipt = (phone: string, clientName: string, service: string, price: number) => {
-    const msg = `Olá ${clientName}! Segue o comprovante do seu agendamento.%0A%0A*Serviços:* ${service}%0A*Total:* R$ ${price},00%0A*Status:* PAGO%0A%0AAgradecemos a preferência! ✨`;
-    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+    const msg = `Olá ${clientName}! Segue o comprovante do seu agendamento.\n\n*Serviços:* ${service}\n*Total:* R$ ${price},00\n*Status:* PAGO\n\nAgradecemos a preferência! ✨`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   const handleCharge = (phone: string, clientName: string, price: number) => {
-    const msg = `Olá ${clientName}! Para confirmar seu agendamento, por favor realize o pagamento do valor de R$ ${price},00 pela nossa chave Pix: CNPJ 00.000.000/0001-00.`;
-    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+    const msg = `Olá ${clientName}! Para confirmar seu agendamento, por favor realize o pagamento do valor de R$ ${price},00 pela nossa chave Pix.`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   const handleBlockDay = () => {
@@ -3217,7 +3217,8 @@ export default function AdminDashboard() {
                       onClick={() => {
                         const clientPhone = clients.find(c => c.email === client.clientEmail)?.phone || "5511999999999";
                         const remaining = (loyaltySettings.stampsRequired || 7) - client.stamps;
-                        window.open(`https://wa.me/${clientPhone}?text=Olá ${client.clientName}! Faltam apenas ${remaining} visitas para seu prêmio!`, '_blank');
+                        const msg = `Olá ${client.clientName}! ✨ Faltam apenas ${remaining} visitas para resgatar o seu prêmio exclusivo no *Fran Marinho | Studio de Beleza*! 🎉`;
+                        window.open(`https://wa.me/${clientPhone}?text=${encodeURIComponent(msg)}`, '_blank');
                       }}
                       style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 16px", border: "1px solid #fcd34d", borderRadius: "8px", backgroundColor: "#fffbeb", color: "#d97706", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef3c7'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fffbeb'}>
                       <Send size={14} /> Enviar lembrete
