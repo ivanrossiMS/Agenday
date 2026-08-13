@@ -258,12 +258,56 @@ export default function AdminDashboard() {
           } else {
             setNoticeModal({ open: true, title: "Falha no Estorno", message: data.error || "Não foi possível estornar esta cobrança.", type: "error" });
           }
-        } catch (err: any) {
+        } catch (err) {
           setMpActionId(null);
-          setNoticeModal({ open: true, title: "Erro de Conexão", message: "Falha ao conectar com o serviço de estorno.", type: "error" });
+          setNoticeModal({ open: true, title: "Erro de Conexão", message: "Erro ao comunicar com a API do Mercado Pago.", type: "error" });
         }
       }
     });
+  };
+
+  const renderPaymentBadge = (paymentStatus: string, fontSize = '0.78rem', padding = '4px 10px') => {
+    const ps = (paymentStatus || 'open').toLowerCase();
+    if (ps === 'paid_pix') {
+      return (
+        <span className={`${styles.badge} ${styles.badgePix}`} style={{ fontSize, padding }}>
+          ⚡ Pago no Pix
+        </span>
+      );
+    }
+    if (ps === 'paid_credit') {
+      return (
+        <span className={`${styles.badge} ${styles.badgeBlue}`} style={{ fontSize, padding }}>
+          💳 Pago no Cartão (Crédito)
+        </span>
+      );
+    }
+    if (ps === 'paid_debit') {
+      return (
+        <span className={`${styles.badge} ${styles.badgeCyan}`} style={{ fontSize, padding }}>
+          💳 Pago no Cartão (Débito)
+        </span>
+      );
+    }
+    if (ps === 'paid_cash' || ps === 'paid') {
+      return (
+        <span className={`${styles.badge} ${styles.badgeEmerald}`} style={{ fontSize, padding }}>
+          💰 Pago no Salão (Dinheiro)
+        </span>
+      );
+    }
+    if (ps === 'refunded') {
+      return (
+        <span className={`${styles.badge} ${styles.badgeGray}`} style={{ fontSize, padding }}>
+          🔄 Reembolsado / Estornado
+        </span>
+      );
+    }
+    return (
+      <span className={`${styles.badge} ${styles.badgeYellow}`} style={{ fontSize, padding }}>
+        ⏳ Pagamento pendente
+      </span>
+    );
   };
 
   const handleConfirmAndSendWhatsApp = (appt: any) => {
@@ -1416,11 +1460,7 @@ export default function AdminDashboard() {
                                           {apt.status === 'pending' && <span className={`${styles.badge} ${styles.badgeYellow}`}>Pendente</span>}
                                           {apt.status === 'completed' && <span className={`${styles.badge} ${styles.badgeGray}`}>Concluído</span>}
                                           
-                                          {apt.paymentStatus.includes('paid') ? (
-                                            <span className={`${styles.badge} ${styles.badgeGreen}`}>Pago via {apt.paymentStatus.replace('paid_', '')}</span>
-                                          ) : (
-                                            <span className={`${styles.badge} ${styles.badgeYellow}`}>Pagamento pendente</span>
-                                          )}
+                                          {renderPaymentBadge(apt.paymentStatus, '0.7rem', '3px 8px')}
                                         </div>
                                       </div>
                                     </div>
@@ -4282,15 +4322,7 @@ export default function AdminDashboard() {
 
                     <div className={styles.detailBadgeGroup}>
                       <span className={styles.detailBadgeGroupTitle}>Situação do Pagamento:</span>
-                      {selectedDetailAppt.paymentStatus.includes('paid') ? (
-                        <span className={`${styles.badge} ${styles.badgeGreen}`} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
-                          💳 Pago via {selectedDetailAppt.paymentStatus.replace('paid_', '')}
-                        </span>
-                      ) : (
-                        <span className={`${styles.badge} ${styles.badgeYellow}`} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
-                          ⏳ Pagamento pendente
-                        </span>
-                      )}
+                      {renderPaymentBadge(selectedDetailAppt.paymentStatus, '0.85rem', '6px 12px')}
                     </div>
                   </div>
 
@@ -4335,7 +4367,7 @@ export default function AdminDashboard() {
                         title={selectedDetailAppt.status === 'confirmed' ? 'Marcar como pendente' : 'Confirmar agendamento e notificar no WhatsApp'}
                       >
                         <CheckCircle2 size={16} />
-                        <span>{selectedDetailAppt.status === 'confirmed' ? 'Pendente' : 'Confirmar'}</span>
+                        <span>{selectedDetailAppt.status === 'confirmed' ? 'Marcar Pendente' : 'Confirmar'}</span>
                       </button>
 
 

@@ -1447,6 +1447,30 @@
   border-color: #bbf7d0;
 }
 
+.badgePix {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
+}
+
+.badgeBlue {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+.badgeCyan {
+  background: #ecfeff;
+  color: #0891b2;
+  border-color: #a5f3fc;
+}
+
+.badgeEmerald {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
 .badgeYellow {
   background: #fefce8;
   color: #ca8a04;

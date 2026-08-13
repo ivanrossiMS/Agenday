@@ -155,6 +155,13 @@ export function AppointmentsProvider({ children }: { children: ReactNode }) {
 
 
     loadData();
+
+    // Auto-sync interval: re-fetches appointments every 5 seconds for real-time synchronization
+    const interval = setInterval(() => {
+      refreshAppointments();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

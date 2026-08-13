@@ -253,10 +253,14 @@ export default function DashboardPage() {
   // Agendamentos futuros ou do dia atual (com carência de 2h)
   const futureAppts = activeAppts.filter(a => parseApptTimestamp(a.date, a.time) >= nowTs - 7200000);
 
-  // Seleciona o agendamento de data MAIS PRÓXIMA no futuro (ativo e não cancelado)
-  const nextAppt = futureAppts.length > 0 
-    ? [...futureAppts].sort((a, b) => parseApptTimestamp(a.date, a.time) - parseApptTimestamp(b.date, b.time))[0]
-    : undefined;
+  // Seleciona o agendamento de data MAIS PRÓXIMA no futuro (ativo e não cancelado), priorizando agendamentos confirmados ou pagos
+  const confirmedFutureAppts = futureAppts.filter(a => a.status === "confirmed" || (a.paymentStatus && a.paymentStatus.includes("paid")));
+
+  const nextAppt = confirmedFutureAppts.length > 0
+    ? [...confirmedFutureAppts].sort((a, b) => parseApptTimestamp(a.date, a.time) - parseApptTimestamp(b.date, b.time))[0]
+    : (futureAppts.length > 0 
+        ? [...futureAppts].sort((a, b) => parseApptTimestamp(a.date, a.time) - parseApptTimestamp(b.date, b.time))[0]
+        : undefined);
 
   // Histórico Recente: exibe os demais agendamentos do cliente (além do próximo em destaque)
   const historyAppts = myAppts.filter(a => a.id !== nextAppt?.id);
@@ -452,13 +456,22 @@ export default function DashboardPage() {
 
   const getPaymentBadge = (status?: string) => {
     const s = (status || "").toLowerCase();
-    if (s === "paid_pix" || s === "pix") return { label: "Pago no Pix", icon: <QrCode size={13} />, class: styles.paymentPaid };
-    if (s === "paid_credit" || s === "paid_card" || s === "paid_debit" || s === "card" || s === "credit" || s === "approved" || s === "paid") {
-      return { label: "Pago no Cartão", icon: <CreditCard size={13} />, class: styles.paymentPaid };
+    if (s === "paid_pix" || s === "pix") {
+      return { label: "Pago no Pix", icon: <QrCode size={13} />, class: styles.paymentPix };
     }
-    if (s === "pending") return { label: "Pagar no Salão", icon: <Store size={13} />, class: styles.paymentOpen };
-    if (s === "open") return { label: "Em Aberto", icon: <CreditCard size={13} />, class: styles.paymentOpen };
-    return { label: "Em Aberto", icon: <Store size={13} />, class: styles.paymentOpen };
+    if (s === "paid_credit" || s === "credit") {
+      return { label: "Pago no Cartão (Crédito)", icon: <CreditCard size={13} />, class: styles.paymentCredit };
+    }
+    if (s === "paid_debit" || s === "debit") {
+      return { label: "Pago no Cartão (Débito)", icon: <CreditCard size={13} />, class: styles.paymentDebit };
+    }
+    if (s.includes("paid") || s === "paid_cash") {
+      return { label: "Pago no Salão (Dinheiro)", icon: <Store size={13} />, class: styles.paymentCash };
+    }
+    if (s === "refunded") {
+      return { label: "Reembolsado", icon: <RotateCcw size={13} />, class: styles.paymentRefunded };
+    }
+    return { label: "Em Aberto", icon: <Clock size={13} />, class: styles.paymentOpen };
   };
 
 
@@ -627,7 +640,7 @@ export default function DashboardPage() {
                   <div className={styles.heroMetaPills}>
                     <span className={styles.heroMetaPill}><Clock size={13} /> {totalDurationText}</span>
                     <span className={styles.heroMetaPill}><Star size={13} /> R$ {nextAppt.price ? nextAppt.price.toFixed(2).replace('.', ',') : '0,00'}</span>
-                    <span className={`${styles.heroMetaPill} ${styles.paymentBadgePill}`}>
+                    <span className={`${styles.heroMetaPill} ${getPaymentBadge(nextAppt.paymentStatus).class}`}>
                       {getPaymentBadge(nextAppt.paymentStatus).icon}
                       <span>{getPaymentBadge(nextAppt.paymentStatus).label}</span>
                     </span>
