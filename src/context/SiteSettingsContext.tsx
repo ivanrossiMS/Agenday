@@ -65,7 +65,7 @@ const defaultSettings: SiteSettings = {
     "Informe alergias ou sensibilidades",
     "Traga uma foto de inspiração"
   ],
-  logoUrl: "",
+  logoUrl: "/logo.svg",
   loginHeroImage: "https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?q=80&w=1200&auto=format&fit=crop",
   loginQuote: "A beleza começa no momento em que você decide ser você mesma.",
   loginQuoteAuthor: "Coco Chanel",

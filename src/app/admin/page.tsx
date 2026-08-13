@@ -113,7 +113,7 @@ export default function AdminDashboard() {
 
   // Financial Filters & Pagination State
   const [finDateFilter, setFinDateFilter] = useState<"all" | "today" | "yesterday" | "last_7_days" | "last_30_days" | "this_month" | "last_month" | "this_year">("all");
-  const [finStatusFilter, setFinStatusFilter] = useState<"all" | "paid" | "pending" | "paid_pix" | "paid_credit" | "paid_debit" | "open">("all");
+  const [finStatusFilter, setFinStatusFilter] = useState<"all" | "paid" | "pending" | "paid_pix" | "paid_credit" | "paid_debit" | "open" | "refunded">("all");
   const [finClientFilter, setFinClientFilter] = useState<string>("all");
   const [visibleFinancesCount, setVisibleFinancesCount] = useState<number>(10);
   const [isLoadingMoreFinances, setIsLoadingMoreFinances] = useState<boolean>(false);
@@ -1087,8 +1087,8 @@ export default function AdminDashboard() {
   
   // Agendamentos filtrados pela data no Dashboard Principal
   const dayAppointments = appointments.filter(a => a.date === selectedDateStr);
-  const totalRevenue = dayAppointments.reduce((acc, curr) => acc + curr.price, 0);
-  const paidRevenue = dayAppointments.filter(a => a.paymentStatus.includes('paid')).reduce((acc, curr) => acc + curr.price, 0);
+  const totalRevenue = dayAppointments.filter(a => a.status !== 'canceled' && (a.paymentStatus as string) !== 'refunded').reduce((acc, curr) => acc + curr.price, 0);
+  const paidRevenue = dayAppointments.filter(a => a.status !== 'canceled' && (a.paymentStatus as string) !== 'refunded' && a.paymentStatus.includes('paid')).reduce((acc, curr) => acc + curr.price, 0);
 
   // Extrair clientes únicos para o select e CRM
   const uniqueClientsList = Array.from(new Set(appointments.map(a => a.clientEmail))).map(email => {
@@ -1148,13 +1148,14 @@ export default function AdminDashboard() {
       if (finStatusFilter === 'paid_pix') return a.paymentStatus === 'paid_pix';
       if (finStatusFilter === 'paid_credit') return a.paymentStatus === 'paid_credit';
       if (finStatusFilter === 'paid_debit') return a.paymentStatus === 'paid_debit';
+      if (finStatusFilter === 'refunded') return (a.paymentStatus as string) === 'refunded';
     }
     
     return true;
   });
 
-  const finTotal = filteredFinances.reduce((acc, curr) => acc + curr.price, 0);
-  const finPaid = filteredFinances.filter(a => a.paymentStatus.includes('paid')).reduce((acc, curr) => acc + curr.price, 0);
+  const finTotal = filteredFinances.filter(a => (a.paymentStatus as string) !== 'refunded').reduce((acc, curr) => acc + curr.price, 0);
+  const finPaid = filteredFinances.filter(a => (a.paymentStatus as string) !== 'refunded' && a.paymentStatus.includes('paid')).reduce((acc, curr) => acc + curr.price, 0);
   const finPixTotal = filteredFinances.filter(a => a.paymentStatus === 'paid_pix').reduce((acc, curr) => acc + curr.price, 0);
   const finCardTotal = filteredFinances.filter(a => a.paymentStatus === 'paid_credit' || (a.paymentStatus as string) === 'paid_card' || a.paymentStatus === 'paid_debit').reduce((acc, curr) => acc + curr.price, 0);
   const finPending = filteredFinances.filter(a => a.paymentStatus === 'open' || (a.paymentStatus as string) === 'pending').reduce((acc, curr) => acc + curr.price, 0);
@@ -1195,13 +1196,11 @@ export default function AdminDashboard() {
       {/* Sidebar Ultra Moderna */}
       <aside className={styles.sidebar}>
         <div className={styles.sidebarLogo}>
-          {settings?.logoUrl ? (
-            <img src={settings.logoUrl} alt="Logo" className={styles.sidebarLogoImg} />
-          ) : (
-            <div className={styles.sidebarLogoBadge}>
-              <Sparkles size={18} color="#ffffff" />
-            </div>
-          )}
+          <img 
+            src={settings?.logoUrl || "/logo.svg"} 
+            alt="Fran Marinho Logo" 
+            style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "contain" }} 
+          />
           <span className={styles.sidebarLogoText}>
             Fran <span className={styles.sidebarLogoHighlight}>Marinho</span>
           </span>
@@ -1810,6 +1809,7 @@ export default function AdminDashboard() {
                       <option value="paid_pix">Pago no Pix</option>
                       <option value="paid_credit">Pago no Crédito</option>
                       <option value="pending">Em Aberto (Pendente)</option>
+                      <option value="refunded">Reembolsado / Estornado</option>
                     </select>
                   </div>
                 </div>
@@ -3306,7 +3306,7 @@ export default function AdminDashboard() {
               ) : (
                 clients.map(client => {
                   const clientAppts = appointments.filter(a => a.clientEmail?.toLowerCase() === client.email?.toLowerCase());
-                  const ltv = clientAppts.filter(a => a.status !== 'canceled' && (a.status === 'completed' || a.paymentStatus.includes('paid'))).reduce((acc, curr) => acc + curr.price, 0);
+                  const ltv = clientAppts.filter(a => a.status !== 'canceled' && (a.paymentStatus as string) !== 'refunded' && (a.status === 'completed' || a.paymentStatus.includes('paid'))).reduce((acc, curr) => acc + curr.price, 0);
 
                   return (
                     <div key={client.id} className={styles.clientCardItem}>
@@ -3387,7 +3387,7 @@ export default function AdminDashboard() {
                 .filter(a => a.clientEmail?.toLowerCase() === client.email?.toLowerCase())
                 .sort((a, b) => parseDateString(b.date, b.time) - parseDateString(a.date, a.time));
 
-              const ltv = clientAppts.filter(a => a.status !== 'canceled' && (a.status === 'completed' || a.paymentStatus.includes('paid'))).reduce((acc, curr) => acc + curr.price, 0);
+              const ltv = clientAppts.filter(a => a.status !== 'canceled' && (a.paymentStatus as string) !== 'refunded' && (a.status === 'completed' || a.paymentStatus.includes('paid'))).reduce((acc, curr) => acc + curr.price, 0);
               const stats = getUserStats(client.email);
 
               return (
