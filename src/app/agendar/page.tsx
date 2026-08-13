@@ -79,6 +79,8 @@ function AgendarFlow() {
   const [expiryDate, setExpiryDate] = useState("");
   const [cvv, setCvv] = useState("");
   const [cardCpf, setCardCpf] = useState("");
+  // MercadoPago.js SDK state
+  const [mpPublicKey, setMpPublicKey] = useState("");
   // Auth Form State
   const [isLogin, setIsLogin] = useState(true);
   const [authError, setAuthError] = useState("");
@@ -208,6 +210,27 @@ function AgendarFlow() {
     }
     return slots;
   };
+
+  // Load MercadoPago.js SDK and fetch public key for client-side card tokenization
+  useEffect(() => {
+    const initMp = async () => {
+      try {
+        const res = await fetch("/api/mercadopago/settings");
+        const data = await res.json();
+        if (data.publicKey && data.publicKey.trim()) {
+          setMpPublicKey(data.publicKey.trim());
+        }
+      } catch (e) { /* silently ignore */ }
+
+      if (typeof window !== "undefined" && !(window as any).MercadoPago) {
+        const script = document.createElement("script");
+        script.src = "https://sdk.mercadopago.com/js/v2";
+        script.async = true;
+        document.head.appendChild(script);
+      }
+    };
+    initMp();
+  }, []);
 
   // Pix Polling Effect: checks payment status every 3 seconds while pix modal is active
   useEffect(() => {
@@ -376,6 +399,35 @@ function AgendarFlow() {
       setIsProcessingPayment(true);
       try {
         const [expMonth, expYear] = expiryDate.split("/");
+        const cleanCard = cardNumber.replace(/\D/g, "");
+        const cleanCpf = cardCpf.replace(/\D/g, "");
+        const fullYear = expYear.length === 2 ? `20${expYear}` : expYear;
+        const holderName = cardholderName || user.name;
+
+        // ✅ Tokenização CLIENT-SIDE via MercadoPago.js SDK
+        // Captura fingerprint do dispositivo do comprador — necessário para aprovação do MP
+        let mpClientToken = "";
+        const MpSdk = (window as any).MercadoPago;
+        if (mpPublicKey && MpSdk) {
+          try {
+            const mp = new MpSdk(mpPublicKey, { locale: "pt-BR" });
+            const tokenResult = await mp.createCardToken({
+              cardNumber: cleanCard,
+              cardholderName: holderName,
+              cardExpirationMonth: expMonth,
+              cardExpirationYear: fullYear,
+              securityCode: cvv,
+              identificationType: "CPF",
+              identificationNumber: cleanCpf || "11111111111"
+            });
+            if (tokenResult && tokenResult.id) {
+              mpClientToken = tokenResult.id;
+            }
+          } catch (sdkErr) {
+            // SDK indisponível ou erro — continua com tokenização server-side
+            console.warn("MP SDK client token failed, falling back to server-side:", sdkErr);
+          }
+        }
 
         const res = await fetch("/api/mercadopago/card", {
           method: "POST",
@@ -386,12 +438,15 @@ function AgendarFlow() {
             serviceName: servicesStr,
             clientName: user.name,
             clientEmail: user.email,
-            cardNumber: cardNumber.replace(/\D/g, ""),
-            cardholderName: cardholderName || user.name,
+            // Se tiver token client-side, envia apenas ele (mais seguro e aprovado pelo MP)
+            token: mpClientToken || undefined,
+            // Fallback: dados brutos para tokenização server-side se SDK não disponível
+            cardNumber: mpClientToken ? undefined : cleanCard,
+            cardholderName: holderName,
             expirationMonth: expMonth,
-            expirationYear: expYear,
-            securityCode: cvv,
-            cpf: cardCpf.replace(/\D/g, ""),
+            expirationYear: fullYear,
+            securityCode: mpClientToken ? undefined : cvv,
+            cpf: cleanCpf,
             date: selectedDateStr,
             time: selectedTime,
             endTime

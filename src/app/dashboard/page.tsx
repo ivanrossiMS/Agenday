@@ -55,6 +55,8 @@ export default function DashboardPage() {
   const [dashExpiryDate, setDashExpiryDate] = useState("");
   const [dashCvv, setDashCvv] = useState("");
   const [dashCpf, setDashCpf] = useState("");
+  // MercadoPago.js SDK public key
+  const [dashMpPublicKey, setDashMpPublicKey] = useState("");
 
   const formatDashCardNumber = (val: string) => {
     const digits = val.replace(/\D/g, "").slice(0, 16);
@@ -75,6 +77,27 @@ export default function DashboardPage() {
     if (digits.length > 9) res = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
     return res;
   };
+
+  // Load MercadoPago.js SDK for client-side tokenization
+  useEffect(() => {
+    const initMp = async () => {
+      try {
+        const res = await fetch("/api/mercadopago/settings");
+        const data = await res.json();
+        if (data.publicKey && data.publicKey.trim()) {
+          setDashMpPublicKey(data.publicKey.trim());
+        }
+      } catch (e) { /* silently ignore */ }
+
+      if (typeof window !== "undefined" && !(window as any).MercadoPago) {
+        const script = document.createElement("script");
+        script.src = "https://sdk.mercadopago.com/js/v2";
+        script.async = true;
+        document.head.appendChild(script);
+      }
+    };
+    initMp();
+  }, []);
 
   // Pix Polling Effect
   useEffect(() => {
@@ -174,6 +197,33 @@ export default function DashboardPage() {
       setDashIsProcessing(true);
       try {
         const [expMonth, expYear] = dashExpiryDate.split("/");
+        const cleanCard = dashCardNumber.replace(/\D/g, "");
+        const cleanCpf = dashCpf.replace(/\D/g, "");
+        const fullYear = expYear.length === 2 ? `20${expYear}` : expYear;
+        const holderName = dashCardholderName || payingAppt.clientName;
+
+        // ✅ Tokenização CLIENT-SIDE via MercadoPago.js SDK
+        let dashClientToken = "";
+        const MpSdk = (window as any).MercadoPago;
+        if (dashMpPublicKey && MpSdk) {
+          try {
+            const mp = new MpSdk(dashMpPublicKey, { locale: "pt-BR" });
+            const tokenResult = await mp.createCardToken({
+              cardNumber: cleanCard,
+              cardholderName: holderName,
+              cardExpirationMonth: expMonth,
+              cardExpirationYear: fullYear,
+              securityCode: dashCvv,
+              identificationType: "CPF",
+              identificationNumber: cleanCpf || "11111111111"
+            });
+            if (tokenResult && tokenResult.id) {
+              dashClientToken = tokenResult.id;
+            }
+          } catch (sdkErr) {
+            console.warn("MP SDK client token failed, falling back:", sdkErr);
+          }
+        }
 
         const res = await fetch("/api/mercadopago/card", {
           method: "POST",
@@ -184,12 +234,13 @@ export default function DashboardPage() {
             serviceName: payingAppt.service,
             clientName: payingAppt.clientName,
             clientEmail: payingAppt.clientEmail,
-            cardNumber: dashCardNumber.replace(/\D/g, ""),
-            cardholderName: dashCardholderName || payingAppt.clientName,
+            token: dashClientToken || undefined,
+            cardNumber: dashClientToken ? undefined : cleanCard,
+            cardholderName: holderName,
             expirationMonth: expMonth,
-            expirationYear: expYear,
-            securityCode: dashCvv,
-            cpf: dashCpf.replace(/\D/g, "")
+            expirationYear: fullYear,
+            securityCode: dashClientToken ? undefined : dashCvv,
+            cpf: cleanCpf
           })
         });
 

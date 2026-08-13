@@ -161,7 +161,11 @@ export async function POST(req: Request) {
         headers: {
           "Authorization": `Bearer ${config.accessToken}`,
           "Content-Type": "application/json",
-          "X-Idempotency-Key": getUniqueKey()
+          "X-Idempotency-Key": getUniqueKey(),
+          // Forward real client IP for fraud scoring
+          ...(req.headers.get("x-forwarded-for")
+            ? { "X-Forwarded-For": req.headers.get("x-forwarded-for")! }
+            : {})
         },
         body: JSON.stringify(mpPayload)
       });
@@ -176,7 +180,10 @@ export async function POST(req: Request) {
         if (mpStatus === "rejected") {
           let causeMsg = "Pagamento recusado pela operadora do cartão.";
           if (statusDetail === "cc_rejected_high_risk") {
-            causeMsg = "Recusado pelos controles de segurança do Mercado Pago (O Mercado Pago não autoriza compras realizadas no mesmo celular/computador/IP da conta vendedora para prevenir autofinanciamento. Tente por outro celular/Wi-Fi ou via Pix).";
+            causeMsg = "⚠️ Pagamento recusado por alto risco (cc_rejected_high_risk). Possíveis causas:\n\n" +
+              "1. Se você é a proprietária do salão (Francielli), não é possível pagar com seu próprio cartão vinculado ao Mercado Pago — o sistema bloqueia autofinanciamento por CPF.\n" +
+              "2. Para testes, use os cartões de teste oficiais do Mercado Pago (números disponíveis em https://www.mercadopago.com.br/developers/pt/docs/your-integrations/test/cards).\n" +
+              "3. Para clientes reais, recomende o pagamento via Pix (funciona perfeitamente).";
           } else if (statusDetail === "cc_rejected_insufficient_amount") {
             causeMsg = "Saldo ou limite insuficiente no cartão de crédito.";
           } else if (statusDetail === "cc_rejected_bad_filled_security_code") {
@@ -186,9 +193,13 @@ export async function POST(req: Request) {
           } else if (statusDetail === "cc_rejected_bad_filled_other") {
             causeMsg = "Dados do cartão incorretos. Por favor, verifique o número, validade e CVV.";
           } else if (statusDetail === "cc_rejected_call_for_authorize") {
-            causeMsg = "Pagamento requer autorização do banco emissor do seu cartão.";
+            causeMsg = "Pagamento requer autorização do banco emissor do seu cartão. Ligue para o número no verso do cartão.";
           } else if (statusDetail === "cc_rejected_other_reason") {
             causeMsg = "Pagamento recusado pela operadora. Verifique se o cartão é válido ou utilize o Pix.";
+          } else if (statusDetail === "cc_rejected_card_disabled") {
+            causeMsg = "Cartão bloqueado ou desativado. Entre em contato com seu banco.";
+          } else if (statusDetail === "cc_rejected_duplicated_payment") {
+            causeMsg = "Pagamento duplicado detectado. Aguarde alguns minutos antes de tentar novamente.";
           }
 
           return NextResponse.json({ error: causeMsg, statusDetail, status: mpStatus }, { status: 400 });
