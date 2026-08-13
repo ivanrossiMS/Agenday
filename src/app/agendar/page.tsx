@@ -407,6 +407,7 @@ function AgendarFlow() {
         // ✅ Tokenização CLIENT-SIDE via MercadoPago.js SDK
         // Captura fingerprint do dispositivo do comprador — necessário para aprovação do MP
         let mpClientToken = "";
+        let mpCardBin = cleanCard.slice(0, 6);
         const MpSdk = (window as any).MercadoPago;
         if (mpPublicKey && MpSdk) {
           try {
@@ -422,6 +423,7 @@ function AgendarFlow() {
             });
             if (tokenResult && tokenResult.id) {
               mpClientToken = tokenResult.id;
+              mpCardBin = tokenResult.first_six_digits || mpCardBin;
             }
           } catch (sdkErr) {
             // SDK indisponível ou erro — continua com tokenização server-side
@@ -440,6 +442,7 @@ function AgendarFlow() {
             clientEmail: user.email,
             // Se tiver token client-side, envia apenas ele (mais seguro e aprovado pelo MP)
             token: mpClientToken || undefined,
+            cardBin: mpCardBin,
             // Fallback: dados brutos para tokenização server-side se SDK não disponível
             cardNumber: mpClientToken ? undefined : cleanCard,
             cardholderName: holderName,

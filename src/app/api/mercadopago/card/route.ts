@@ -81,14 +81,46 @@ export async function POST(req: Request) {
         }
       }
 
-      // Infer payment_method_id if not supplied (e.g. visa, master)
-      let detectedMethod = paymentMethodId || "visa";
-      if (!paymentMethodId && cardNumber) {
+      // Detect payment_method_id via Mercado Pago's BIN lookup API (most accurate approach)
+      // Falls back to regex if the lookup fails
+      const cardBin = body.cardBin || (cardNumber ? cardNumber.replace(/\D/g, "").slice(0, 6) : "");
+      let detectedMethod = paymentMethodId || "master";
+
+      if (!paymentMethodId && cardBin && config.publicKey) {
+        try {
+          const binRes = await fetch(
+            `https://api.mercadopago.com/v1/payment_methods/search?public_key=${config.publicKey}&bin=${cardBin}&payment_type_id=credit_card`,
+            {
+              headers: { "Authorization": `Bearer ${config.accessToken}` }
+            }
+          );
+          const binData = await binRes.json();
+          if (binData.results && binData.results.length > 0) {
+            detectedMethod = binData.results[0].id;
+          } else {
+            // If no credit_card result, try without type filter
+            const binRes2 = await fetch(
+              `https://api.mercadopago.com/v1/payment_methods/search?public_key=${config.publicKey}&bin=${cardBin}`,
+              { headers: { "Authorization": `Bearer ${config.accessToken}` } }
+            );
+            const binData2 = await binRes2.json();
+            if (binData2.results && binData2.results.length > 0) {
+              detectedMethod = binData2.results[0].id;
+            }
+          }
+        } catch (binErr) {
+          console.warn("BIN lookup failed, falling back to regex:", binErr);
+        }
+      }
+
+      // Regex fallback if BIN lookup didn't resolve (no publicKey or API unavailable)
+      if (!paymentMethodId && !cardBin && cardNumber) {
         const num = cardNumber.replace(/\D/g, "");
         if (num.startsWith("4")) detectedMethod = "visa";
         else if (/^5[1-5]/.test(num) || /^2[2-7]/.test(num)) detectedMethod = "master";
         else if (/^3[47]/.test(num)) detectedMethod = "amex";
-        else if (/^6011|^65/.test(num)) detectedMethod = "elo";
+        else if (/^6362|^6504|^6516|^6550|^4576|^4011/.test(num)) detectedMethod = "elo";
+        else if (/^6011|^65/.test(num)) detectedMethod = "discover";
         else if (/^38|^60/.test(num)) detectedMethod = "hipercard";
       }
 

@@ -204,6 +204,7 @@ export default function DashboardPage() {
 
         // ✅ Tokenização CLIENT-SIDE via MercadoPago.js SDK
         let dashClientToken = "";
+        let dashCardBin = cleanCard.slice(0, 6);
         const MpSdk = (window as any).MercadoPago;
         if (dashMpPublicKey && MpSdk) {
           try {
@@ -219,6 +220,7 @@ export default function DashboardPage() {
             });
             if (tokenResult && tokenResult.id) {
               dashClientToken = tokenResult.id;
+              dashCardBin = tokenResult.first_six_digits || dashCardBin;
             }
           } catch (sdkErr) {
             console.warn("MP SDK client token failed, falling back:", sdkErr);
@@ -235,6 +237,7 @@ export default function DashboardPage() {
             clientName: payingAppt.clientName,
             clientEmail: payingAppt.clientEmail,
             token: dashClientToken || undefined,
+            cardBin: dashCardBin,
             cardNumber: dashClientToken ? undefined : cleanCard,
             cardholderName: holderName,
             expirationMonth: expMonth,
