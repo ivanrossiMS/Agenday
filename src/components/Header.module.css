@@ -43,37 +43,50 @@
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
-.logoCircle {
+.logoBadge {
   background: linear-gradient(135deg, #D96B52 0%, #C85A48 100%);
   color: #FFF;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-serif);
-  font-size: 0.92rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  box-shadow: 0 4px 12px rgba(217, 107, 82, 0.28);
+  box-shadow: 0 4px 12px rgba(217, 107, 82, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.4);
   flex-shrink: 0;
+}
+
+.brandTitleGroup {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .logoText {
   font-family: var(--font-serif);
   color: #18181B;
-  font-size: 1.55rem;
+  font-size: 1.42rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .logoTextHighlight {
   color: #C85A48;
+}
+
+.logoSubtitle {
+  font-family: var(--font-inter), sans-serif;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #8C6D62;
+  text-transform: uppercase;
+  margin-top: 2px;
 }
 
 .navCenter {

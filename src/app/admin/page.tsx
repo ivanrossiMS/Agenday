@@ -1196,14 +1196,17 @@ export default function AdminDashboard() {
       {/* Sidebar Ultra Moderna */}
       <aside className={styles.sidebar}>
         <div className={styles.sidebarLogo}>
-          <img 
-            src={settings?.logoUrl || "/logo.svg"} 
-            alt="Fran Marinho Logo" 
-            style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "contain" }} 
-          />
-          <span className={styles.sidebarLogoText}>
-            Fran <span className={styles.sidebarLogoHighlight}>Marinho</span>
-          </span>
+          <div className={styles.sidebarLogoBadge}>
+            <Sparkles size={18} color="#ffffff" />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span className={styles.sidebarLogoText}>
+              Fran <span className={styles.sidebarLogoHighlight}>Marinho</span>
+            </span>
+            <span style={{ fontSize: '0.6rem', letterSpacing: '0.12em', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginTop: '1px' }}>
+              Studio de Beleza
+            </span>
+          </div>
         </div>
 
         

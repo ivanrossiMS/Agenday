@@ -50,16 +50,17 @@ export default function Header() {
 
   return (
     <header className={`${styles.header} ${scrolled ? styles.scrolled : ""}`}>
-      {/* Left: Logo */}
+      {/* Left: Brand / Logo */}
       <Link href="/" className={styles.logo}>
-        <img 
-          src={settings?.logoUrl || "/logo.svg"} 
-          alt="Fran Marinho Logo" 
-          style={{ height: "42px", width: "42px", objectFit: "contain", borderRadius: "50%", filter: "drop-shadow(0 2px 6px rgba(217, 107, 82, 0.2))" }} 
-        />
-        <span className={styles.logoText}>
-          Fran <span className={styles.logoTextHighlight}>Marinho</span>
-        </span>
+        <div className={styles.logoBadge}>
+          <Sparkles size={16} />
+        </div>
+        <div className={styles.brandTitleGroup}>
+          <span className={styles.logoText}>
+            Fran <span className={styles.logoTextHighlight}>Marinho</span>
+          </span>
+          <span className={styles.logoSubtitle}>STUDIO DE BELEZA & ESTÉTICA</span>
+        </div>
       </Link>
 
       
@@ -160,14 +161,15 @@ export default function Header() {
           <div className={styles.mobileDrawerContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.mobileDrawerHeader}>
               <div className={styles.logo}>
-                <img 
-                  src={settings?.logoUrl || "/logo.svg"} 
-                  alt="Fran Marinho Logo" 
-                  style={{ height: "36px", width: "36px", objectFit: "contain", borderRadius: "50%" }} 
-                />
-                <span className={styles.logoText}>
-                  Fran <span className={styles.logoTextHighlight}>Marinho</span>
-                </span>
+                <div className={styles.logoBadge}>
+                  <Sparkles size={14} />
+                </div>
+                <div className={styles.brandTitleGroup}>
+                  <span className={styles.logoText}>
+                    Fran <span className={styles.logoTextHighlight}>Marinho</span>
+                  </span>
+                  <span className={styles.logoSubtitle}>STUDIO DE BELEZA & ESTÉTICA</span>
+                </div>
               </div>
 
               <button className={styles.closeDrawerBtn} onClick={() => setMobileMenuOpen(false)}>
